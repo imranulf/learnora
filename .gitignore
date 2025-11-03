@@ -1,0 +1,126 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+htmlcov/
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# Knowledge Graph Data
+data/graph/*.ttl
+!data/graph/ontologies/*.ttl
+
+# Node.js / React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+dist-ssr/
+*.local
+.cache/
+
+# Build files
+*.tsbuildinfo
+.vite/
+build/
+
+# Logs
+logs/
+*.log
+
+# Secrets & API Keys
+.env
+.env.*
+*.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*_credentials.json
+*_key.json
+secrets/
+credentials/
+
+# Unnecessary/Temporary Markdown Documentation
+*_FIXES_REPORT.md
+*_FIX_*.md
+MARKDOWN_*.md
+*_RECHECK_*.md
+*_AUDIT_*.md
+CLEANUP_*.md
+verify_*.py
+fix_*.py
+test_*.py
+cleanup_*.ps1
+run_cleanup.ps1
+final_cleanup.ps1
+
+# Archive directory (optional - uncomment if you don't want to track archived docs)
+# docs/archive/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Misc
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json

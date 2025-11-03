@@ -1,0 +1,390 @@
+import { Close as CloseIcon, Error } from '@mui/icons-material';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Paper,
+  Stack,
+  TextField,
+  Typography
+} from '@mui/material';
+import React, { useEffect, useState } from 'react';
+
+interface AssessmentWizardProps {
+  open: boolean;
+  onComplete?: (result: LearningPathResponse) => void;
+  onClose: () => void;
+}
+
+type WizardStep = 'topic' | 'conversation' | 'generating' | 'complete';
+
+export default function AssessmentWizard({ open, onComplete, onClose }: AssessmentWizardProps) {
+  const [step, setStep] = useState<WizardStep>('topic');
+  const [topic, setTopic] = useState('');
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [currentResponse, setCurrentResponse] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [knowledgeGraph, setKnowledgeGraph] = useState<KnowledgeGraph | null>(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check if AI features are available
+  useEffect(() => {
+    if (open) {
+      checkAIStatus()
+        .then((data) => {
+          setAiEnabled(data.ai_enabled);
+          if (!data.ai_enabled || data.placeholder_key || data.configured === false) {
+            setError(
+              data.ai_enabled
+                ? 'AI setup incomplete: A valid GOOGLE_API_KEY is required on the server.'
+                : 'AI features are not enabled on the server. You can still use the standard assessment.'
+            );
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to check AI status:', err);
+          setError('Failed to connect to AI service.');
+        });
+    }
+  }, [open]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const startAssessment = async () => {
+    if (!topic.trim()) {
+      setError('Please enter a topic');
+      return;
+    }
+
+    console.log('Starting assessment for topic:', topic);
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await startLearningPath(topic.trim());
+
+      setThreadId(response.thread_id || null);
+      setMessages([
+        { role: 'user', content: `I want to learn about ${topic}` },
+        { role: 'ai', content: response.message || 'Let\'s begin!' },
+      ]);
+
+      // Check if assessment is complete immediately
+      if (response.assessment_complete && response.knowledge_graph) {
+        setKnowledgeGraph(response.knowledge_graph);
+        setStep('complete');
+        if (onComplete) {
+          onComplete(response);
+        }
+      } else {
+        setStep('conversation');
+      }
+    } catch (err) {
+      console.error('API error:', err);
+      const message = err instanceof Error ? err.message : 'Failed to start assessment';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendResponse = async () => {
+    if (!currentResponse.trim() || !threadId) {
+      setError('Please enter a response');
+      return;
+    }
+
+    const userMessage = currentResponse.trim();
+    setCurrentResponse('');
+    setLoading(true);
+    setError('');
+
+    // Add user message immediately
+    setMessages((prev: ChatMessage[]) => [...prev, { role: 'user', content: userMessage }]);
+
+    try {
+      const response = await respondToLearningPath(threadId, userMessage);
+
+      // Add AI response
+      setMessages((prev: ChatMessage[]) => [...prev, { role: 'ai', content: response.message || '' }]);
+
+      // Check if assessment is complete
+      if (response.assessment_complete) {
+        setStep('generating');
+
+        // If knowledge graph is ready
+        if (response.knowledge_graph) {
+          setKnowledgeGraph(response.knowledge_graph);
+          setStep('complete');
+
+          if (onComplete) {
+            onComplete(response);
+          }
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send response');
+      setMessages((prev: ChatMessage[]) => prev.slice(0, -1)); // Remove user message on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (step === 'topic') {
+        startAssessment();
+      } else if (step === 'conversation') {
+        sendResponse();
+      }
+    }
+  };
+
+  const steps = ['Topic', 'Assessment', 'Generate', 'Complete'];
+  const activeStep = ['topic', 'conversation', 'generating', 'complete'].indexOf(step);
+
+  if (!aiEnabled && error) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          🤖 AI Learning Path Planner
+          <IconButton
+            aria-label="close"
+            onClick={onClose}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+          <Typography variant="body2">
+            The AI-powered learning path planning feature requires additional setup. You can still
+            use the traditional assessment and learning path features.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        🤖 AI Learning Path Planner
+        <IconButton
+          aria-label="close"
+          onClick={onClose}
+          sx={{ position: 'absolute', right: 8, top: 8 }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Step 1: Topic Selection */}
+        {step === 'topic' && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              What would you like to learn?
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Enter any topic, subject, or skill you want to master. Our AI will create a
+              personalized learning path just for you.
+            </Typography>
+            <TextField
+              fullWidth
+              placeholder="e.g., Machine Learning, Web Development, Spanish..."
+              value={topic}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTopic(e.target.value)}
+              onKeyPress={handleKeyPress}
+              autoFocus
+              sx={{ mb: 2 }}
+            />
+          </Box>
+        )}
+
+        {/* Step 2: Conversation */}
+        {step === 'conversation' && (
+          <Box>
+            <Paper variant="outlined" sx={{ p: 1.5, mb: 2, bgcolor: 'grey.50' }}>
+              <Typography variant="body2">
+                <strong>Learning Topic:</strong> {topic}
+              </Typography>
+            </Paper>
+
+            <Paper
+              variant="outlined"
+              sx={{ height: 400, overflow: 'auto', p: 2, mb: 2, bgcolor: 'background.default' }}
+            >
+              <Stack spacing={2}>
+                {messages.map((msg: ChatMessage, index: number) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                      flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                    }}
+                  >
+                    <Avatar sx={{ bgcolor: msg.role === 'ai' ? 'primary.main' : 'secondary.main' }}>
+                      {msg.role === 'ai' ? '🤖' : '👤'}
+                    </Avatar>
+                    <Paper
+                      elevation={1}
+                      sx={{
+                        p: 2,
+                        maxWidth: '70%',
+                        bgcolor: msg.role === 'ai' ? 'primary.50' : 'secondary.50',
+                      }}
+                    >
+                      <Typography variant="body2">{msg.content}</Typography>
+                    </Paper>
+                  </Box>
+                ))}
+                {loading && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Avatar sx={{ bgcolor: 'primary.main' }}>🤖</Avatar>
+                    <Paper elevation={1} sx={{ p: 2 }}>
+                      <CircularProgress size={20} />
+                    </Paper>
+                  </Box>
+                )}
+                <div ref={messagesEndRef} />
+              </Stack>
+            </Paper>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="Type your response here..."
+                value={currentResponse}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCurrentResponse(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={loading}
+              />
+              <Button
+                variant="contained"
+                onClick={sendResponse}
+                disabled={loading || !currentResponse.trim()}
+                startIcon={<SendIcon />}
+                sx={{ alignSelf: 'flex-end' }}
+              >
+                Send
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {/* Step 3: Generating */}
+        {step === 'generating' && (
+          <Box sx={{ textAlign: 'center', py: 5 }}>
+            <CircularProgress size={60} sx={{ mb: 3 }} />
+            <Typography variant="h6" gutterBottom>
+              Creating Your Personalized Learning Path...
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Our AI is analyzing your responses and designing a custom curriculum just for you.
+            </Typography>
+          </Box>
+        )}
+
+        {/* Step 4: Complete */}
+        {step === 'complete' && (
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h3" sx={{ mb: 2 }}>
+              ✅
+            </Typography>
+            <Typography variant="h6" gutterBottom>
+              Your Learning Path is Ready!
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              We've created a personalized learning path with{' '}
+              {knowledgeGraph?.['@graph']?.length || 0} concepts tailored to your needs.
+            </Typography>
+            {knowledgeGraph && knowledgeGraph['@graph'] && (
+              <Paper variant="outlined" sx={{ p: 2, mt: 3, textAlign: 'left' }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Learning Concepts:
+                </Typography>
+                <List dense>
+                  {knowledgeGraph['@graph'].slice(0, 5).map((concept: any, idx: number) => (
+                    <ListItem key={idx}>
+                      <ListItemText
+                        primary={concept.name}
+                        secondary={
+                          <Chip label={concept.difficulty} size="small" sx={{ ml: 1 }} />
+                        }
+                      />
+                    </ListItem>
+                  ))}
+                  {knowledgeGraph['@graph'].length > 5 && (
+                    <ListItem>
+                      <ListItemText
+                        secondary={`...and ${knowledgeGraph['@graph'].length - 5} more concepts`}
+                      />
+                    </ListItem>
+                  )}
+                </List>
+              </Paper>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        {step === 'topic' && (
+          <>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={startAssessment}
+              disabled={loading || !topic.trim()}
+            >
+              {loading ? 'Starting...' : 'Start Assessment'}
+            </Button>
+          </>
+        )}
+        {step === 'complete' && (
+          <Button variant="contained" onClick={onClose}>
+            View Learning Path
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+}

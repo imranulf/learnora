@@ -1,0 +1,49 @@
+{
+  "name": "learner-web-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "dev_old": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource/roboto": "^5.2.8",
+    "@headlessui/react": "^2.2.9",
+    "@mui/icons-material": "^7.3.4",
+    "@mui/material": "^7.3.4",
+    "@react-router/node": "^7.9.4",
+    "@tailwindcss/postcss": "^4.1.16",
+    "@toolpad/core": "^0.16.0",
+    "framer-motion": "^12.23.24",
+    "isbot": "^5",
+    "react": "^19.1.1",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.3.0",
+    "vis-data": "^8.0.3",
+    "vis-network": "^10.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@react-router/dev": "^7.9.4",
+    "@types/node": "^24.6.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.45.0",
+    "vite": "^7.1.7"
+  }
+}

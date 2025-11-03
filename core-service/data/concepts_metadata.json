@@ -1,0 +1,20 @@
+{
+  "Dancing": {
+    "label": "Pop Dancing",
+    "description": "I want to learn how to dance with pop music.",
+    "category": "General",
+    "difficulty": "Beginner",
+    "tags": [],
+    "created_at": "2025-11-02T22:40:51.416913",
+    "updated_at": "2025-11-02T22:40:51.416913"
+  },
+  "Programming": {
+    "label": "Python Programming",
+    "description": "I want to learn the basics of Python Programming.",
+    "category": "Programming",
+    "difficulty": "Intermediate",
+    "tags": [],
+    "created_at": "2025-11-02T22:42:27.904627",
+    "updated_at": "2025-11-02T22:42:27.904627"
+  }
+}

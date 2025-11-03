@@ -1,0 +1,35 @@
+[project]
+name = "core-service"
+version = "0.1.0"
+description = "Learnora Core Service - AI-powered adaptive learning platform with Dynamic Knowledge Evaluation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.21.0",
+    "fastapi-users[sqlalchemy]>=14.0.1",
+    "fastapi[standard]>=0.119.0",
+    "langchain-core>=0.3.79",
+    "langchain[google-genai]>=0.3.27",
+    "langgraph>=0.6.10",
+    "pydantic-settings>=2.11.0",
+    "python-dotenv>=1.1.1",
+    "rdflib>=7.1.1",
+    "sqlalchemy>=2.0.44",
+    # Dynamic Knowledge Evaluation (DKE) dependencies
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "scipy>=1.11.0",
+    # Content Discovery dependencies
+    "beautifulsoup4>=4.12.0",
+    "requests>=2.31.0",
+    "scikit-learn>=1.3.0",
+    "feedparser>=6.0.10",
+    "ddgs>=9.0.0",
+    "google-generativeai>=0.8.0",
+    "google-api-python-client>=2.154.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]

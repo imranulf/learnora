@@ -5,8 +5,8 @@ Business logic for tracking and calculating learning path progress.
 Automatically syncs with Knowledge Graph for mastery levels.
 """
 
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
 from datetime import datetime
 from typing import List, Dict, Optional
 from app.features.learning_path.progress_models import LearningPathProgress, ProgressStatus
@@ -16,11 +16,11 @@ from app.features.users.knowledge.service import UserKnowledgeService
 class LearningPathProgressService:
     """Service for tracking and calculating learning path progress"""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
-        self.kg_service = UserKnowledgeService(db)
+        self.kg_service = UserKnowledgeService()  # Fixed: no db parameter needed
     
-    def initialize_path_progress(
+    async def initialize_path_progress(
         self, 
         user_id: int, 
         thread_id: str, 
@@ -42,13 +42,16 @@ class LearningPathProgressService:
         
         for concept_name in concept_names:
             # Check if progress already exists
-            existing = self.db.query(LearningPathProgress).filter(
-                and_(
-                    LearningPathProgress.user_id == user_id,
-                    LearningPathProgress.thread_id == thread_id,
-                    LearningPathProgress.concept_name == concept_name
+            result = await self.db.execute(
+                select(LearningPathProgress).where(
+                    and_(
+                        LearningPathProgress.user_id == user_id,
+                        LearningPathProgress.thread_id == thread_id,
+                        LearningPathProgress.concept_name == concept_name
+                    )
                 )
-            ).first()
+            )
+            existing = result.scalar_one_or_none()
             
             if not existing:
                 progress = LearningPathProgress(
@@ -61,10 +64,10 @@ class LearningPathProgressService:
                 self.db.add(progress)
                 progress_records.append(progress)
         
-        self.db.commit()
+        await self.db.commit()
         return progress_records
     
-    def update_concept_progress(
+    async def update_concept_progress(
         self, 
         user_id: int, 
         thread_id: str, 
@@ -86,13 +89,16 @@ class LearningPathProgressService:
             Updated progress record
         """
         # Get or create progress record
-        progress = self.db.query(LearningPathProgress).filter(
-            and_(
-                LearningPathProgress.user_id == user_id,
-                LearningPathProgress.thread_id == thread_id,
-                LearningPathProgress.concept_name == concept_name
+        result = await self.db.execute(
+            select(LearningPathProgress).where(
+                and_(
+                    LearningPathProgress.user_id == user_id,
+                    LearningPathProgress.thread_id == thread_id,
+                    LearningPathProgress.concept_name == concept_name
+                )
             )
-        ).first()
+        )
+        progress = result.scalar_one_or_none()
         
         if not progress:
             progress = LearningPathProgress(
@@ -125,8 +131,8 @@ class LearningPathProgressService:
         
         progress.last_interaction_at = datetime.utcnow()
         
-        self.db.commit()
-        self.db.refresh(progress)
+        await self.db.commit()
+        await self.db.refresh(progress)
         
         return progress
     
@@ -155,7 +161,7 @@ class LearningPathProgressService:
             print(f"Error getting mastery from KG: {e}")
             return 0.0
     
-    def get_path_progress(self, user_id: int, thread_id: str) -> Dict:
+    async def get_path_progress(self, user_id: int, thread_id: str) -> Dict:
         """
         Get overall progress for a learning path.
         
@@ -166,12 +172,15 @@ class LearningPathProgressService:
         Returns:
             Dict with overall stats and per-concept progress
         """
-        progress_records = self.db.query(LearningPathProgress).filter(
-            and_(
-                LearningPathProgress.user_id == user_id,
-                LearningPathProgress.thread_id == thread_id
+        result = await self.db.execute(
+            select(LearningPathProgress).where(
+                and_(
+                    LearningPathProgress.user_id == user_id,
+                    LearningPathProgress.thread_id == thread_id
+                )
             )
-        ).all()
+        )
+        progress_records = result.scalars().all()
         
         if not progress_records:
             return {
@@ -210,7 +219,7 @@ class LearningPathProgressService:
             ]
         }
     
-    def get_next_concept(self, user_id: int, thread_id: str) -> Optional[str]:
+    async def get_next_concept(self, user_id: int, thread_id: str) -> Optional[str]:
         """
         Get the next concept to focus on in the learning path.
         
@@ -221,12 +230,17 @@ class LearningPathProgressService:
         Returns:
             Concept name or None if all mastered
         """
-        progress_records = self.db.query(LearningPathProgress).filter(
-            and_(
-                LearningPathProgress.user_id == user_id,
-                LearningPathProgress.thread_id == thread_id
+        result = await self.db.execute(
+            select(LearningPathProgress)
+            .where(
+                and_(
+                    LearningPathProgress.user_id == user_id,
+                    LearningPathProgress.thread_id == thread_id
+                )
             )
-        ).order_by(LearningPathProgress.created_at).all()
+            .order_by(LearningPathProgress.created_at)
+        )
+        progress_records = result.scalars().all()
         
         # Find first non-mastered concept
         for progress in progress_records:
@@ -235,7 +249,7 @@ class LearningPathProgressService:
         
         return None  # All concepts mastered!
     
-    def sync_all_progress_from_kg(self, user_id: int, thread_id: str) -> int:
+    async def sync_all_progress_from_kg(self, user_id: int, thread_id: str) -> int:
         """
         Sync all concept progress with current Knowledge Graph mastery levels.
         Useful for batch updates after assessments or major learning activities.
@@ -247,12 +261,15 @@ class LearningPathProgressService:
         Returns:
             Number of progress records updated
         """
-        progress_records = self.db.query(LearningPathProgress).filter(
-            and_(
-                LearningPathProgress.user_id == user_id,
-                LearningPathProgress.thread_id == thread_id
+        result = await self.db.execute(
+            select(LearningPathProgress).where(
+                and_(
+                    LearningPathProgress.user_id == user_id,
+                    LearningPathProgress.thread_id == thread_id
+                )
             )
-        ).all()
+        )
+        progress_records = result.scalars().all()
         
         updated_count = 0
         
@@ -277,6 +294,6 @@ class LearningPathProgressService:
                 updated_count += 1
         
         if updated_count > 0:
-            self.db.commit()
+            await self.db.commit()
         
         return updated_count

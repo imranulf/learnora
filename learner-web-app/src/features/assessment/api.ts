@@ -24,7 +24,7 @@ async function fetchAPI<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('access_token');
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,

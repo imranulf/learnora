@@ -79,7 +79,7 @@ async def get_learning_path_progress(
         Progress statistics and concept-level details
     """
     service = LearningPathProgressService(db)
-    progress = service.get_path_progress(current_user.id, thread_id)
+    progress = await service.get_path_progress(current_user.id, thread_id)
     
     if progress["total_concepts"] == 0:
         # No progress found - might be a new path
@@ -119,7 +119,7 @@ async def update_concept_progress(
     service = LearningPathProgressService(db)
     
     try:
-        progress = service.update_concept_progress(
+        progress = await service.update_concept_progress(
             user_id=current_user.id,
             thread_id=thread_id,
             concept_name=request.concept_name,
@@ -158,7 +158,7 @@ async def get_next_concept(
         Next concept name or completion message
     """
     service = LearningPathProgressService(db)
-    next_concept = service.get_next_concept(current_user.id, thread_id)
+    next_concept = await service.get_next_concept(current_user.id, thread_id)
     
     if not next_concept:
         return {
@@ -195,8 +195,8 @@ async def sync_progress_with_kg(
     service = LearningPathProgressService(db)
     
     try:
-        updated_count = service.sync_all_progress_from_kg(current_user.id, thread_id)
-        progress = service.get_path_progress(current_user.id, thread_id)
+        updated_count = await service.sync_all_progress_from_kg(current_user.id, thread_id)
+        progress = await service.get_path_progress(current_user.id, thread_id)
         
         return {
             "updated_concepts": updated_count,
@@ -230,7 +230,7 @@ async def initialize_path_progress(
     service = LearningPathProgressService(db)
     
     try:
-        progress_records = service.initialize_path_progress(
+        progress_records = await service.initialize_path_progress(
             user_id=current_user.id,
             thread_id=thread_id,
             concept_names=concept_names

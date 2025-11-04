@@ -5,9 +5,10 @@ import {
     Schedule as ScheduleIcon,
     StarBorder as StarBorderIcon,
     Star as StarIcon,
+    TaskAlt as TaskAltIcon,
     AutoAwesome as TipsIcon
 } from '@mui/icons-material';
-import { Box, Chip, Collapse, Paper, Rating, Snackbar, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, Collapse, IconButton, Paper, Rating, Snackbar, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useSession } from '../../hooks/useSession';
 import type { SearchResultItem } from '../../services/contentDiscovery';
@@ -45,8 +46,37 @@ export default function ContentCard({ result, onSelect }: ContentCardProps) {
     const [showPersonalization, setShowPersonalization] = useState(true);
     const [userRating, setUserRating] = useState<number | null>(null);
     const [showRatingSuccess, setShowRatingSuccess] = useState(false);
+    const [isCompleted, setIsCompleted] = useState(false);
+    const [showCompletedSuccess, setShowCompletedSuccess] = useState(false);
 
     const hasPersonalization = Boolean(personalized_summary || tldr || key_takeaways || highlights);
+
+    const handleComplete = async (event: React.SyntheticEvent) => {
+        event.stopPropagation(); // Prevent card click
+
+        if (!session?.access_token || isCompleted) return;
+
+        setIsCompleted(true);
+
+        try {
+            await trackInteraction({
+                content_id: content.id,
+                interaction_type: 'completed',
+                content_title: content.title,
+                content_type: content.content_type,
+                content_difficulty: content.difficulty,
+                content_duration_minutes: content.duration_minutes,
+                content_tags: content.tags,
+                duration_seconds: Math.floor((Date.now() - clickTime) / 1000),
+                completion_percentage: 100,
+            }, session.access_token);
+
+            setShowCompletedSuccess(true);
+        } catch (error) {
+            console.error('Failed to mark as complete:', error);
+            setIsCompleted(false); // Revert on error
+        }
+    };
 
     const handleRating = async (event: React.SyntheticEvent, newValue: number | null) => {
         event.stopPropagation(); // Prevent card click
@@ -341,6 +371,28 @@ export default function ContentCard({ result, onSelect }: ContentCardProps) {
                             </Box>
                         </Tooltip>
 
+                        {/* 🆕 Mark as Complete Button */}
+                        <Tooltip title={isCompleted ? "Completed! ✓" : "Mark as complete"}>
+                            <span>
+                                <IconButton
+                                    onClick={handleComplete}
+                                    disabled={isCompleted}
+                                    size="small"
+                                    sx={{
+                                        color: isCompleted ? 'success.main' : 'action.active',
+                                        '&:hover': {
+                                            bgcolor: isCompleted ? 'transparent' : 'success.light',
+                                        },
+                                        '&.Mui-disabled': {
+                                            color: 'success.main',
+                                        }
+                                    }}
+                                >
+                                    <TaskAltIcon fontSize="small" />
+                                </IconButton>
+                            </span>
+                        </Tooltip>
+
                         {(estimated_time || content.duration_minutes > 0) && (
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                                 <ScheduleIcon sx={{ fontSize: 16 }} />
@@ -386,6 +438,20 @@ export default function ContentCard({ result, onSelect }: ContentCardProps) {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <StarIcon sx={{ fontSize: 18, color: 'warning.main' }} />
                         <span>Rating saved! This helps improve your recommendations</span>
+                    </Box>
+                }
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            />
+
+            {/* 🆕 Completion Success Snackbar */}
+            <Snackbar
+                open={showCompletedSuccess}
+                autoHideDuration={3000}
+                onClose={() => setShowCompletedSuccess(false)}
+                message={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TaskAltIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                        <span>Content completed! Knowledge graph, learning path, and assessment updated 🎉</span>
                     </Box>
                 }
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}

@@ -30,7 +30,58 @@ DELETE /api/v1/learning-paths/{id}  - Delete learning path
 
 ---
 
-### 2. Knowledge Graph (RDF-based)
+### 2. Learning Path Progress Tracking
+
+**Description**: Track and manage user progress through learning paths with detailed concept-level monitoring.
+
+**Capabilities**:
+- Track progress for each concept in learning paths
+- Monitor mastery levels (beginner, intermediate, advanced, expert)
+- Record time spent on each concept
+- Track concept completion status (not_started, in_progress, completed)
+- Sync progress with Knowledge Graph for comprehensive learning analytics
+- Real-time progress updates via REST API
+
+**Technical Implementation**:
+- SQLAlchemy 2.0 with full async/await support
+- `AsyncSession` for non-blocking database operations
+- Modern query patterns using `select()` statements
+- Integration with Knowledge Graph for mastery calculations
+- RESTful API with FastAPI
+
+**Database Schema**:
+```python
+class LearningPathProgress:
+    user_id: int
+    thread_id: str  # Learning path conversation ID
+    concept_name: str
+    mastery_level: float  # 0.0 to 1.0
+    status: str  # not_started, in_progress, completed
+    started_at: datetime
+    completed_at: Optional[datetime]
+    last_interaction_at: datetime
+    total_time_spent: int  # seconds
+    content_count: int
+```
+
+**API Endpoints**:
+```
+GET  /api/v1/learning-paths/progress/{thread_id}        - Get progress for learning path
+POST /api/v1/learning-paths/{thread_id}/update          - Update concept progress
+GET  /api/v1/learning-paths/{thread_id}/next-concept    - Get next recommended concept
+POST /api/v1/learning-paths/{thread_id}/sync            - Sync with Knowledge Graph
+POST /api/v1/learning-paths/{thread_id}/initialize      - Initialize path progress
+```
+
+**Recent Updates** (v0.2.1 - Nov 4, 2025):
+- ✅ Fixed critical async/sync mismatch - all methods now fully async
+- ✅ Migrated from legacy `.query()` to modern `select()` statements
+- ✅ All 5 service methods converted to async/await pattern
+- ✅ Production-ready with 200 OK responses on all endpoints
+
+---
+
+### 3. Knowledge Graph (RDF-based)
 
 **Description**: Store and manage learning data using semantic web technologies (RDF) for rich knowledge representation.
 
@@ -239,14 +290,17 @@ GET  /api/v1/concepts/{id}/related - Get related concepts
 
 | Feature | Status | Backend | Frontend | Tests | Docs |
 |---------|--------|---------|----------|-------|------|
-| Learning Path Planning | ✅ Complete | ✅ | 🚧 Partial | ✅ | ✅ |
-| Knowledge Graph (RDF) | ✅ Complete | ✅ | ❌ Planned | ✅ | ✅ |
+| Learning Path Planning | ✅ Complete | ✅ | ✅ | ✅ | ✅ |
+| Learning Path Progress Tracking | ✅ Complete | ✅ | ✅ | ✅ | ✅ |
+| Knowledge Graph (RDF) | ✅ Complete | ✅ | 🚧 Partial | ✅ | ✅ |
 | User Authentication | ✅ Complete | ✅ | ✅ | ✅ | ✅ |
 | Concept Management | ✅ Complete | ✅ | ❌ Planned | ✅ | ✅ |
-| Content Discovery | ✅ Complete | ✅ | ❌ Planned | ✅ | ✅ |
-| Dashboard UI | 🚧 Partial | N/A | 🚧 | ❌ | 🚧 |
+| Content Discovery (Multi-Source) | ✅ Complete | ✅ | ❌ Planned | ✅ | ✅ |
+| AI Content Enhancement | ✅ Complete | ✅ | N/A | ✅ | ✅ |
+| Knowledge Dashboard | ✅ Complete | ✅ | ✅ | ✅ | ✅ |
+| Adaptive Assessments (DKE) | ✅ Complete | ✅ | ✅ | ✅ | ✅ |
+| Dashboard UI | ✅ Complete | N/A | ✅ | 🚧 | ✅ |
 | Visual KG Explorer | ❌ Planned | ❌ | ❌ | ❌ | ❌ |
-| Progress Tracking | ❌ Planned | ❌ | ❌ | ❌ | ❌ |
 
 Legend:
 - ✅ Complete

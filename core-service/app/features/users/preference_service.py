@@ -406,6 +406,12 @@ class PreferenceService:
                 f"Successfully updated {updated_count} concepts for user {user_id} "
                 f"from content interaction"
             )
+            
+            # Sync learning path progress with updated knowledge graph
+            try:
+                self._sync_learning_path_progress(user_id, matched_concept_ids)
+            except Exception as e:
+                logger.error(f"Failed to sync learning path progress: {e}")
     
     def _calculate_mastery_increment(
         self,
@@ -487,6 +493,73 @@ class PreferenceService:
         concept_normalized = common_variations.get(concept_root, concept_root)
         
         return tag_normalized == concept_normalized or tag_normalized in concept_normalized or concept_normalized in tag_normalized
+    
+    def _sync_learning_path_progress(self, user_id: int, concept_ids: List[str]) -> None:
+        """
+        Sync learning path progress after knowledge graph updates.
+        Updates mastery levels for all active learning paths containing the updated concepts.
+        """
+        from app.features.learning_path.models import LearningPath
+        from app.features.learning_path.progress_service import LearningPathProgressService
+        
+        # Find all active learning paths for the user
+        active_paths = self.db.query(LearningPath).filter(
+            LearningPath.user_id == user_id,
+            LearningPath.is_archived == False
+        ).all()
+        
+        if not active_paths:
+            logger.debug(f"No active learning paths found for user {user_id}")
+            return
+        
+        progress_service = LearningPathProgressService(self.db)
+        total_updates = 0
+        
+        for path in active_paths:
+            # Check if any of the updated concepts are in this learning path
+            path_concepts = set()
+            
+            # Extract concept names from learning path structure
+            # The structure is a list of steps, each with concept_id
+            if hasattr(path, 'structure') and path.structure:
+                for step in path.structure:
+                    if isinstance(step, dict) and 'concept_id' in step:
+                        path_concepts.add(step['concept_id'])
+            
+            # Match concept IDs (case-insensitive)
+            matched_concepts = []
+            for concept_id in concept_ids:
+                for path_concept in path_concepts:
+                    if (concept_id.lower() == path_concept.lower() or
+                        concept_id.lower().replace('_', ' ') == path_concept.lower().replace('_', ' ')):
+                        matched_concepts.append(path_concept)
+                        break
+            
+            if matched_concepts:
+                logger.info(
+                    f"Syncing {len(matched_concepts)} concepts in learning path "
+                    f"'{path.conversation_thread_id}' for user {user_id}"
+                )
+                
+                # Update progress for each matched concept
+                for concept_name in matched_concepts:
+                    try:
+                        progress_service.update_concept_progress(
+                            user_id=user_id,
+                            thread_id=path.conversation_thread_id,
+                            concept_name=concept_name,
+                            completed_content=True  # Mark as completed content interaction
+                        )
+                        total_updates += 1
+                    except Exception as e:
+                        logger.error(f"Failed to update progress for concept '{concept_name}': {e}")
+        
+        if total_updates > 0:
+            logger.info(
+                f"Successfully synced {total_updates} learning path progress records "
+                f"for user {user_id}"
+            )
+
     
     def build_user_profile(self, user_id: int) -> UserProfile:
         """

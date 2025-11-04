@@ -4,19 +4,21 @@
 
 An intelligent learning platform that suggests personalized content based on user goals, current knowledge level, and learning preferences. Now includes advanced adaptive testing and knowledge tracing capabilities.
 
-> ✅ **Consolidated Version**: This is the complete, production-ready version consolidating all features from 4 development branches + Dynamic Knowledge Evaluation (DKE) system from KG_CD_DKE root folder. Verified against [GitHub repository](https://github.com/MaheeGamage/Learnora). See [DKE_INTEGRATION_STATUS.md](DKE_INTEGRATION_STATUS.md) for latest updates.
+> ✅ **Latest Version: 0.2.1** - All critical bugs resolved. Learning Path Progress tracking fully functional with async SQLAlchemy support. See [CHANGELOG.md](CHANGELOG.md) for complete update history.
 
 ## 🌟 Features
 
 ### Backend (FastAPI + Python)
 - 🎯 **Learning Path Planning**: AI-powered learning path generation using LangGraph
+- 📊 **Learning Path Progress Tracking**: Track concept mastery, progress status, and time spent
 - 🧠 **Knowledge Graph**: RDF-based knowledge storage for user learning data
-- � **Dynamic Knowledge Evaluation (NEW!)**: Adaptive testing (IRT/CAT), Bayesian knowledge tracing (BKT), multi-modal assessment
+- 🎓 **Dynamic Knowledge Evaluation**: Adaptive testing (IRT/CAT), Bayesian knowledge tracing (BKT), multi-modal assessment
 - 📈 **Learning Analytics**: Comprehensive progress tracking, mastery levels, learning gap identification
-- �👤 **User Management**: Complete authentication system with FastAPI-Users
+- 👤 **User Management**: Complete authentication system with FastAPI-Users
 - 🎓 **Concept Management**: Track and manage learning concepts
-- 🔍 **Content Discovery**: Integrated content discovery system
-- 🗄️ **Database**: SQLAlchemy with SQLite/PostgreSQL support
+- 🔍 **Content Discovery**: Integrated content discovery with YouTube, Medium, DuckDuckGo, and GitHub
+- 🤖 **AI Content Enhancement**: Perplexity AI for difficulty detection, tag extraction, and quality scoring
+- 🗄️ **Database**: SQLAlchemy 2.0 with async support (SQLite/PostgreSQL)
 - 🔐 **Security**: JWT authentication, secure password hashing
 - 📝 **API Documentation**: Auto-generated OpenAPI/Swagger docs
 

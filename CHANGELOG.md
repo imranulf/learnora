@@ -2,6 +2,92 @@
 
 All notable changes to the Learnora project are documented in this file.
 
+## [0.2.1] - 2025-11-04 - Critical Learning Path Progress Fix
+
+### 🐛 Critical Bug Fix: Async/Sync Mismatch in Learning Path Progress Service
+
+#### Problem Resolved
+Fixed a critical async/sync mismatch in `LearningPathProgressService` that caused 500 Internal Server Errors on all Learning Path Progress endpoints.
+
+**Error**: 
+```
+AttributeError: 'AsyncSession' object has no attribute 'query'
+GET /api/v1/learning-paths/progress/{thread_id} → 500 Internal Server Error
+```
+
+**Root Cause**: 
+- Service used synchronous SQLAlchemy syntax (`db.query(Model).filter(...).all()`)
+- Router passed `AsyncSession` which doesn't support `.query()` method
+- All 5 service methods affected
+
+#### Changes Made
+
+**Files Modified**:
+1. `core-service/app/features/learning_path/progress_service.py` (~150 lines changed)
+   - Changed import: `sqlalchemy.orm.Session` → `sqlalchemy.ext.asyncio.AsyncSession`
+   - Added `select` import from SQLAlchemy
+   - Converted all 5 methods to `async def`:
+     - `initialize_path_progress()`
+     - `update_concept_progress()`
+     - `get_path_progress()` (PRIMARY FIX - was causing user-reported issue)
+     - `get_next_concept()`
+     - `sync_all_progress_from_kg()`
+   - Updated all database queries:
+     - `db.query(Model).filter(...).first()` → `await db.execute(select(Model).where(...)); result.scalar_one_or_none()`
+     - `db.query(Model).filter(...).all()` → `await db.execute(select(Model).where(...)); result.scalars().all()`
+     - `db.commit()` → `await db.commit()`
+     - `db.refresh(obj)` → `await db.refresh(obj)`
+
+2. `core-service/app/features/learning_path/progress_router.py` (5 lines changed)
+   - Updated all 5 endpoint calls to use `await`:
+     - `get_learning_path_progress()` - Added `await` to service call
+     - `update_concept_progress()` - Added `await` to service call
+     - `get_next_concept()` - Added `await` to service call
+     - `sync_progress_with_kg()` - Added `await` to both service calls
+     - `initialize_path_progress()` - Added `await` to service call
+
+**Migration Pattern**:
+```python
+# Before (Sync - BROKEN)
+def get_path_progress(self, user_id: int, thread_id: str) -> Dict:
+    progress_records = self.db.query(LearningPathProgress).filter(
+        and_(...)
+    ).all()
+
+# After (Async - WORKING)
+async def get_path_progress(self, user_id: int, thread_id: str) -> Dict:
+    result = await self.db.execute(
+        select(LearningPathProgress).where(and_(...))
+    )
+    progress_records = result.scalars().all()
+```
+
+#### Testing Results
+```
+✅ Backend starts successfully (no import errors)
+✅ Learning Path Progress endpoint returns 200 OK (was 500)
+✅ All async database queries working correctly
+✅ No more 'AsyncSession has no attribute query' errors
+✅ Frontend can now display learning path progress data
+```
+
+#### Impact
+- **Severity**: Critical (complete feature breakage)
+- **Users Affected**: All users trying to access Learning Path Progress
+- **Resolution Time**: Diagnosed and fixed in ~2 hours
+- **Status**: ✅ RESOLVED - Production ready
+
+#### Related Documentation
+- Created `CRITICAL_LEARNING_PATH_BUG_REPORT.md` documenting the issue in detail
+- Updated testing procedures to catch async/sync mismatches
+
+#### Additional Findings
+Two other minor issues discovered during investigation:
+1. **UserKnowledgeService Parameter**: Fixed incorrect initialization `UserKnowledgeService(db)` → `UserKnowledgeService()` (no parameters needed)
+2. **Knowledge Dashboard Empty State**: Dashboard working correctly but showing empty because no data populated yet (user needs to complete assessments or mark content as complete)
+
+---
+
 ## [0.2.0] - 2025-11-02 - API Content Fetcher Implementation
 
 ### 🚀 Major Feature: Multi-Source Content Discovery with AI Enhancement

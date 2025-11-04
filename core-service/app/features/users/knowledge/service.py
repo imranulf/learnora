@@ -21,32 +21,50 @@ class UserKnowledgeService:
         """
         Mark that a user knows a concept.
         
-        Business logic: Could add validation, notifications, achievements, etc.
+        Business logic: Updates both KG and storage metadata.
         
         Args:
             user_id: The user identifier
             concept_id: The concept identifier
         """
-        # Future: Add business logic like checking if user was learning it first,
-        # triggering achievement notifications, updating progress tracking, etc.
-        
+        # Update KG
         self.kg.mark_known(user_id, concept_id)
+        
+        # Update storage with known status and high score
+        self.storage.save_concept_knowledge(
+            user_id=user_id,
+            concept_id=concept_id,
+            mastery="known",
+            score=0.9  # High score for known concepts
+        )
+        
         logger.info(f"User {user_id} now knows concept: {concept_id}")
     
     def mark_concept_as_learning(self, user_id: str, concept_id: str) -> None:
         """
         Mark that a user is currently learning a concept.
         
-        Business logic: Could validate prerequisites are met, limit concurrent learning, etc.
+        Business logic: Updates both KG and storage metadata.
         
         Args:
             user_id: The user identifier
             concept_id: The concept identifier
         """
-        # Future: Add business logic like checking prerequisites,
-        # limiting number of concurrent learning concepts, etc.
-        
+        # Update KG
         self.kg.mark_learning(user_id, concept_id)
+        
+        # Update storage with learning status and medium score
+        existing = self.storage.get_concept_knowledge(user_id, concept_id)
+        current_score = existing.get("score", 0.5) if existing else 0.5
+        
+        # If already has a score, keep it; otherwise start at 0.5
+        self.storage.save_concept_knowledge(
+            user_id=user_id,
+            concept_id=concept_id,
+            mastery="learning",
+            score=current_score
+        )
+        
         logger.info(f"User {user_id} is learning concept: {concept_id}")
     
     def assign_learning_path_to_user(self, user_id: str, thread_id: str) -> None:
@@ -219,20 +237,67 @@ class UserKnowledgeService:
         Returns:
             Sync result with updated concept count
         """
-        # This is a placeholder - in a real implementation, this would:
-        # 1. Query the Assessment feature for latest results
-        # 2. Extract knowledge states and scores
-        # 3. Update user knowledge metadata accordingly
+        from sqlalchemy import select
+        from app.database.connection import SessionLocal
+        from app.features.assessment.models import KnowledgeState
         
-        # For now, return a mock response
         logger.info(f"Syncing knowledge for user {user_id} with assessment data")
         
-        # TODO: Integrate with assessment service
-        # from app.features.assessment.service import AssessmentService
-        # assessment_service = AssessmentService()
-        # latest_results = assessment_service.get_latest_results(int(user_id))
+        updated_count = 0
         
-        return {
-            "updated_concepts": 0,
-            "message": "Assessment sync not yet implemented"
-        }
+        try:
+            # Create a database session
+            async with SessionLocal() as db:
+                # Query knowledge states from assessment
+                result = await db.execute(
+                    select(KnowledgeState)
+                    .where(KnowledgeState.user_id == int(user_id))
+                    .order_by(KnowledgeState.last_updated.desc())
+                )
+                knowledge_states = result.scalars().all()
+                
+                if not knowledge_states:
+                    logger.info(f"No assessment data found for user {user_id}")
+                    return {
+                        "updated_concepts": 0,
+                        "message": "No assessment data found. Please complete an assessment first."
+                    }
+                
+                # Process each knowledge state
+                for state in knowledge_states:
+                    # Map mastery probability to mastery level
+                    if state.mastery_probability >= 0.7:
+                        mastery = "known"
+                    elif state.mastery_probability >= 0.3:
+                        mastery = "learning"
+                    else:
+                        mastery = "not_started"
+                    
+                    # Save to storage
+                    self.storage.save_concept_knowledge(
+                        user_id=user_id,
+                        concept_id=state.skill,
+                        mastery=mastery,
+                        score=state.mastery_probability,
+                        last_updated=state.last_updated
+                    )
+                    
+                    # Update KG if known or learning
+                    if mastery == "known":
+                        self.kg.mark_known(user_id, state.skill)
+                    elif mastery == "learning":
+                        self.kg.mark_learning(user_id, state.skill)
+                    
+                    updated_count += 1
+                    logger.debug(f"Synced {state.skill}: mastery={mastery}, score={state.mastery_probability}")
+            
+            logger.info(f"Successfully synced {updated_count} concepts for user {user_id}")
+            
+            return {
+                "updated_concepts": updated_count,
+                "message": f"Successfully synced {updated_count} concepts from assessment data"
+            }
+            
+        except Exception as e:
+            logger.error(f"Error syncing assessment data for user {user_id}: {e}")
+            raise

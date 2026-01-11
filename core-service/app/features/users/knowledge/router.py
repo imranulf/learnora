@@ -60,65 +60,119 @@ class UpdateUserKnowledgeRequest(BaseModel):
 
 
 @router.post("/mark-known")
-def mark_concept_known(request: MarkKnownRequest):
+def mark_concept_known(
+    request: MarkKnownRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Mark that a user knows a concept.
-    
-    - **user_id**: The user identifier
+
     - **concept_id**: The concept identifier
+
+    Note: user_id is now taken from the authenticated user for security.
     """
     try:
-        service.mark_concept_as_known(request.user_id, request.concept_id)
-        return {"message": f"Concept {request.concept_id} marked as known for user {request.user_id}"}
+        # Use authenticated user's ID for security - prevent user impersonation
+        user_id = str(current_user.id)
+        service.mark_concept_as_known(user_id, request.concept_id)
+        return {"message": f"Concept {request.concept_id} marked as known for user {user_id}"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/mark-learning")
-def mark_concept_learning(request: MarkLearningRequest):
+def mark_concept_learning(
+    request: MarkLearningRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Mark that a user is currently learning a concept.
-    
-    - **user_id**: The user identifier
+
     - **concept_id**: The concept identifier
+
+    Note: user_id is now taken from the authenticated user for security.
     """
     try:
-        service.mark_concept_as_learning(request.user_id, request.concept_id)
-        return {"message": f"Concept {request.concept_id} marked as learning for user {request.user_id}"}
+        # Use authenticated user's ID for security - prevent user impersonation
+        user_id = str(current_user.id)
+        service.mark_concept_as_learning(user_id, request.concept_id)
+        return {"message": f"Concept {request.concept_id} marked as learning for user {user_id}"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/assign-path")
-def assign_learning_path(request: AssignPathRequest):
+def assign_learning_path(
+    request: AssignPathRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Assign a learning path to a user.
-    
-    - **user_id**: The user identifier
+
     - **thread_id**: The learning path thread identifier
+
+    Note: user_id is now taken from the authenticated user for security.
     """
     try:
-        service.assign_learning_path_to_user(request.user_id, request.thread_id)
-        return {"message": f"Learning path {request.thread_id} assigned to user {request.user_id}"}
+        # Use authenticated user's ID for security - prevent user impersonation
+        user_id = str(current_user.id)
+        service.assign_learning_path_to_user(user_id, request.thread_id)
+        return {"message": f"Learning path {request.thread_id} assigned to user {user_id}"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/{user_id}", response_model=UserKnowledgeResponse)
-def get_user_knowledge(user_id: str):
+@router.get("/me", response_model=UserKnowledgeResponse)
+def get_current_user_knowledge(
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get all knowledge information for a user.
-    
-    - **user_id**: The user identifier
+    Get all knowledge information for the authenticated user.
     """
+    user_id = str(current_user.id)
+
     # Get known concepts
     known_uris = service.get_user_known_concepts(user_id)
     known_ids = [str(uri).split("#")[-1] for uri in known_uris]
-    
+
     # Get learning concepts
     learning_uris = service.get_user_learning_concepts(user_id)
     learning_ids = [str(uri).split("#")[-1] for uri in learning_uris]
-    
+
+    return UserKnowledgeResponse(
+        user_id=user_id,
+        known_concepts=known_ids,
+        learning_concepts=learning_ids
+    )
+
+
+@router.get("/{user_id}", response_model=UserKnowledgeResponse)
+def get_user_knowledge(
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get all knowledge information for a user.
+
+    - **user_id**: The user identifier
+
+    Note: Users can only access their own knowledge data unless they are superusers.
+    """
+    # Security check - users can only access their own data
+    if str(current_user.id) != user_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to access other users' knowledge data"
+        )
+
+    # Get known concepts
+    known_uris = service.get_user_known_concepts(user_id)
+    known_ids = [str(uri).split("#")[-1] for uri in known_uris]
+
+    # Get learning concepts
+    learning_uris = service.get_user_learning_concepts(user_id)
+    learning_ids = [str(uri).split("#")[-1] for uri in learning_uris]
+
     return UserKnowledgeResponse(
         user_id=user_id,
         known_concepts=known_ids,
@@ -127,13 +181,26 @@ def get_user_knowledge(user_id: str):
 
 
 @router.get("/{user_id}/knows/{concept_id}")
-def check_user_knows_concept(user_id: str, concept_id: str):
+def check_user_knows_concept(
+    user_id: str,
+    concept_id: str,
+    current_user: User = Depends(get_current_user)
+):
     """
     Check if a user knows a specific concept.
-    
+
     - **user_id**: The user identifier
     - **concept_id**: The concept identifier
+
+    Note: Users can only check their own knowledge unless they are superusers.
     """
+    # Security check - users can only access their own data
+    if str(current_user.id) != user_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to access other users' knowledge data"
+        )
+
     knows = service.user_knows_concept(user_id, concept_id)
     return {
         "user_id": user_id,

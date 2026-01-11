@@ -59,8 +59,63 @@ class ContentCrawler:
         self.custom_keywords = custom_keywords  # User-provided keywords for tag extraction
         self._visited_urls = set()
 
+    # Maximum content size to fetch (5 MB)
+    MAX_CONTENT_SIZE = 5 * 1024 * 1024
+
+    # Blocked URL schemes for SSRF protection
+    ALLOWED_SCHEMES = {'http', 'https'}
+
+    # Blocked hostnames for SSRF protection
+    BLOCKED_HOSTS = {
+        'localhost', '127.0.0.1', '0.0.0.0', '::1',
+        'metadata.google.internal', '169.254.169.254'
+    }
+
+    def _validate_url(self, url: str) -> bool:
+        """Validate URL to prevent SSRF attacks."""
+        try:
+            parsed = urlparse(url)
+
+            # Check scheme
+            if parsed.scheme.lower() not in self.ALLOWED_SCHEMES:
+                print(f"Blocked URL with scheme: {parsed.scheme}")
+                return False
+
+            # Check for blocked hosts
+            hostname = parsed.hostname or ''
+            if hostname.lower() in self.BLOCKED_HOSTS:
+                print(f"Blocked URL with host: {hostname}")
+                return False
+
+            # Block private IP ranges
+            if hostname:
+                # Check for private IP patterns
+                if hostname.startswith('10.') or hostname.startswith('192.168.'):
+                    print(f"Blocked private IP: {hostname}")
+                    return False
+                if hostname.startswith('172.'):
+                    # Check 172.16.0.0 - 172.31.255.255
+                    parts = hostname.split('.')
+                    if len(parts) >= 2:
+                        try:
+                            second_octet = int(parts[1])
+                            if 16 <= second_octet <= 31:
+                                print(f"Blocked private IP: {hostname}")
+                                return False
+                        except ValueError:
+                            pass
+
+            return True
+        except Exception as e:
+            print(f"URL validation error: {e}")
+            return False
+
     def fetch_url(self, url: str) -> Optional[str]:
-        """Fetch content from a URL."""
+        """Fetch content from a URL with SSRF protection and size limits."""
+        # Validate URL first
+        if not self._validate_url(url):
+            return None
+
         try:
             request = Request(url, headers={
                 "User-Agent": self.user_agent,
@@ -70,13 +125,19 @@ class ContentCrawler:
                 if response.status == 200:
                     content_type = response.headers.get("Content-Type", "")
                     if "text/html" in content_type or "text/plain" in content_type:
-                        # Read raw bytes
-                        raw_data = response.read()
+                        # Check content length if available
+                        content_length = response.headers.get("Content-Length")
+                        if content_length and int(content_length) > self.MAX_CONTENT_SIZE:
+                            print(f"Content too large: {content_length} bytes")
+                            return None
+
+                        # Read with size limit
+                        raw_data = response.read(self.MAX_CONTENT_SIZE)
                         
                         # Try to decompress if gzip
                         try:
                             raw_data = gzip.decompress(raw_data)
-                        except:
+                        except (gzip.BadGzipFile, OSError):
                             pass  # Not gzipped, use as-is
                         
                         # Decode to string

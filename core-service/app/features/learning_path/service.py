@@ -6,7 +6,7 @@ from rdflib import Graph as RDFGraph, URIRef
 from typing import Optional
 from app.features.learning_path import crud
 from app.features.learning_path.schemas import (
-    LearningPathCreate, 
+    LearningPathCreate,
     LearningPathUpdate,
     GraphResponse
 )
@@ -23,6 +23,9 @@ import asyncio
 from app.features import learning_path
 
 logger = logging.getLogger(__name__)
+
+# Timeout configuration for LangGraph operations (in seconds)
+LANGGRAPH_INVOKE_TIMEOUT = 120  # 2 minutes for graph invocation
 
 
 class LearningPathService:
@@ -161,7 +164,7 @@ class LearningPathService:
     
     async def start_learning_path(self, db: AsyncSession, topic: str, user_id: int) -> GraphResponse:
         """Start a new learning path
-        
+
         Args:
             db: Database session
             topic: Learning topic
@@ -171,7 +174,7 @@ class LearningPathService:
         conversation_thread_id = str(uuid4())
         config = {"configurable": {"thread_id": conversation_thread_id}}
         initial_state = {"topic": topic}
-        
+
         # Save to database (async)
         learning_path_create = LearningPathCreate(
             conversation_thread_id=conversation_thread_id,
@@ -179,13 +182,30 @@ class LearningPathService:
             user_id=user_id
         )
         await crud.create_learning_path(db, learning_path_create)
-        
-        # Run graph (sync code - run in thread pool to avoid blocking)
-        result = await asyncio.to_thread(self.graph.invoke, initial_state, config)
+
+        # Run graph with timeout (sync code - run in thread pool to avoid blocking)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(self.graph.invoke, initial_state, config),
+                timeout=LANGGRAPH_INVOKE_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout starting learning path for user {user_id}, topic: {topic}")
+            raise HTTPException(
+                status_code=504,
+                detail="Request timed out while generating learning path. Please try again."
+            )
+        except Exception as e:
+            logger.error(f"Error starting learning path for user {user_id}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="An error occurred while starting the learning path. Please try again."
+            )
+
         message_threads = result.get("messages", {})
-        
+
         logger.info(f"Started learning path with conversation_thread_id: {conversation_thread_id} for user {user_id}")
-        
+
         return GraphResponse(
             thread_id=conversation_thread_id,
             messages=message_threads
@@ -193,39 +213,66 @@ class LearningPathService:
     
     async def resume_learning_path(self, db: AsyncSession, thread_id: str, human_answer: str, user_id: int) -> GraphResponse:
         """Resume an existing learning path
-        
+
         Args:
             db: Database session
             thread_id: The conversation thread identifier
             human_answer: Human's answer to the previous question
             user_id: User ID (integer from authenticated user)
-        
+
         Returns:
             GraphResponse with updated conversation
         """
-        
+
         config = {"configurable": {"thread_id": thread_id}}
         state = {"messages": [HumanMessage(content=human_answer)]}
-        
+
         # Get learning path from database to retrieve topic and verify ownership
         db_learning_path = await crud.get_learning_path_by_thread_id(db, thread_id)
         if not db_learning_path:
             logger.error(f"Learning path not found for conversation thread {thread_id}")
             raise ValueError(f"Learning path not found for conversation thread {thread_id}")
-        
+
         # Verify user owns this learning path
         if db_learning_path.user_id != user_id:
             logger.error(f"User {user_id} attempted to access learning path owned by user {db_learning_path.user_id}")
             raise ValueError(f"Not authorized to access this learning path")
-        
+
         # Convert user_id to string for KG operations
         user_id_str = str(user_id)
-        
-        # Update graph state (sync code - run in thread pool)
-        await asyncio.to_thread(self.graph.update_state, config, state)
-        
-        # Run graph (sync code - run in thread pool)
-        result = await asyncio.to_thread(self.graph.invoke, None, config)
+
+        # Update graph state with timeout (sync code - run in thread pool)
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(self.graph.update_state, config, state),
+                timeout=LANGGRAPH_INVOKE_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout updating state for thread {thread_id}")
+            raise HTTPException(
+                status_code=504,
+                detail="Request timed out. Please try again."
+            )
+
+        # Run graph with timeout (sync code - run in thread pool)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(self.graph.invoke, None, config),
+                timeout=LANGGRAPH_INVOKE_TIMEOUT
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout resuming learning path for thread {thread_id}")
+            raise HTTPException(
+                status_code=504,
+                detail="Request timed out while generating learning path. Please try again."
+            )
+        except Exception as e:
+            logger.error(f"Error resuming learning path for thread {thread_id}: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="An error occurred while resuming the learning path. Please try again."
+            )
+
         message_threads = result.get("messages", {})
         
         # Check if this was the final step (learning path generation)

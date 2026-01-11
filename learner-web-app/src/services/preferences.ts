@@ -2,7 +2,9 @@
  * Service for managing user learning preferences and interactions
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+// Use consistent env var name with other services
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_URL = `${API_BASE_URL}/api/v1`;
 
 export interface UserPreferences {
     id: number;

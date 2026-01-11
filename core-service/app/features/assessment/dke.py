@@ -118,25 +118,52 @@ class CATEngine:
         return best
 
     def update_theta(self, state: CATState, max_iter: int = 25) -> Tuple[float, float]:
-        """Update ability estimate using Newton-Raphson MLE."""
+        """Update ability estimate using Newton-Raphson MLE.
+
+        Uses robust numerical methods to handle edge cases:
+        - Division by zero protection
+        - Safe square root calculation
+        - Bounds checking on theta estimates
+        """
         theta = state.theta
         for _ in range(max_iter):
             L1 = 0.0  # log-likelihood first derivative
             L2 = 0.0  # log-likelihood second derivative
             for iid, u in state.responses.items():
-                it = self.bank.items[iid]
+                # Safe item lookup with KeyError protection
+                it = self.bank.items.get(iid)
+                if it is None:
+                    continue  # Skip missing items
                 p = it.p_correct(theta)
+                # Ensure p is in valid range to prevent numerical issues
+                p = max(EPS, min(1 - EPS, p))
                 L1 += it.a * (u - p)
                 L2 -= (it.a ** 2) * p * (1 - p)
+
+            # Safe division - check for near-zero denominator
             if abs(L2) < EPS:
                 break
+
             step = L1 / L2
             theta_new = theta - step
+
+            # Bound theta to reasonable range [-5, 5] to prevent divergence
+            theta_new = max(-5.0, min(5.0, theta_new))
+
             if abs(step) < 1e-3:
                 theta = theta_new
                 break
             theta = theta_new
-        se = math.sqrt(1.0 / max(EPS, -L2)) if L2 < -EPS else float("inf")
+
+        # Safe standard error calculation
+        # SE = sqrt(1 / -L2) where L2 should be negative (second derivative of log-likelihood)
+        if L2 < -EPS:
+            variance = 1.0 / (-L2)
+            # Ensure variance is positive before sqrt
+            se = math.sqrt(max(EPS, variance))
+        else:
+            se = float("inf")
+
         return theta, se
 
     def run(self, oracle: Callable[[Item], int]) -> CATState:
@@ -159,11 +186,23 @@ class CATEngine:
 
 @dataclass
 class BKTParams:
-    """Parameters for Bayesian Knowledge Tracing."""
+    """Parameters for Bayesian Knowledge Tracing.
+
+    All probability parameters must be in [0, 1] range.
+    """
     p_init: float = 0.2   # initial mastery probability
     p_transit: float = 0.2  # learning rate between opportunities
     p_slip: float = 0.1   # probability of error despite mastery
     p_guess: float = 0.2  # probability of correct answer without mastery
+
+    def __post_init__(self):
+        """Validate all probabilities are in [0, 1] range."""
+        for param_name in ['p_init', 'p_transit', 'p_slip', 'p_guess']:
+            value = getattr(self, param_name)
+            if not (0.0 <= value <= 1.0):
+                raise ValueError(
+                    f"BKT parameter '{param_name}' must be in [0, 1], got {value}"
+                )
 
 
 @dataclass
@@ -184,18 +223,38 @@ class KnowledgeTracer:
         self.state = BKTState({s: self.p.p_init for s in skills})
 
     def update(self, skill: str, correct: int):
-        """Update mastery probability for a skill based on response."""
+        """Update mastery probability for a skill based on response.
+
+        Args:
+            skill: The skill/knowledge component to update
+            correct: 1 if response was correct, 0 if incorrect
+
+        Raises:
+            KeyError: If skill not in tracked skills
+        """
+        if skill not in self.state.mastery:
+            # Initialize new skill with default p_init
+            self.state.mastery[skill] = self.p.p_init
+
         p_k = self.state.mastery[skill]
-        # Bayesian update
+
+        # Bayesian update with numerical stability
         if correct:
             num = p_k * (1 - self.p.p_slip)
             den = num + (1 - p_k) * self.p.p_guess
         else:
             num = p_k * self.p.p_slip
             den = num + (1 - p_k) * (1 - self.p.p_guess)
+
+        # Safe division
         p_k_given = num / max(EPS, den)
+
         # Learning transition
         p_next = p_k_given + (1 - p_k_given) * self.p.p_transit
+
+        # Clip to valid probability range [0, 1]
+        p_next = max(0.0, min(1.0, p_next))
+
         self.state.mastery[skill] = p_next
 
     def mastery_snapshot(self) -> Dict[str, float]:
@@ -353,7 +412,9 @@ class DKEPipeline:
 
         # 2) Update knowledge tracing
         for iid, u in cat_state.responses.items():
-            self.kt.update(self.bank.items[iid].skill, u)
+            item = self.bank.items.get(iid)
+            if item is not None:
+                self.kt.update(item.skill, u)
 
         mastery = self.kt.mastery_snapshot()
 
@@ -364,16 +425,18 @@ class DKEPipeline:
         sa_scores = self_assess.to_scores()
         cm_score = ConceptMapScorer.score(concept_edges, required_edges)
 
-        # Build item log
+        # Build item log with safe item access
         rows = []
         for iid in cat_state.asked:
-            it = self.bank.items[iid]
+            it = self.bank.items.get(iid)
+            if it is None:
+                continue  # Skip missing items
             rows.append({
                 "item_id": iid,
                 "skill": it.skill,
                 "a": it.a,
                 "b": it.b,
-                "correct": cat_state.responses[iid],
+                "correct": cat_state.responses.get(iid, 0),
                 "p_at_theta": round(it.p_correct(cat_state.theta), 3),
             })
         item_log = pd.DataFrame(rows)

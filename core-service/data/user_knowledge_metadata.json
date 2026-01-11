@@ -18,5 +18,25 @@
       "score": 0.5,
       "last_updated": "2025-11-04T14:35:19.037020"
     }
+  },
+  "test_user_123": {
+    "Python": {
+      "concept": "Python",
+      "mastery": "known",
+      "score": 0.9,
+      "last_updated": "2026-01-11T19:34:29.679027"
+    },
+    "MachineLearning": {
+      "concept": "MachineLearning",
+      "mastery": "learning",
+      "score": 0.5,
+      "last_updated": "2026-01-11T19:34:29.575811"
+    },
+    "Java": {
+      "concept": "Java",
+      "mastery": "known",
+      "score": 0.9,
+      "last_updated": "2026-01-11T19:34:29.717974"
+    }
   }
 }

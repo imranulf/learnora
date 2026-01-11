@@ -62,7 +62,7 @@ export default function ContentDiscovery() {
 
     // 🆕 Personalization toggle
     const [enablePersonalization, setEnablePersonalization] = useState(true);
-    const summaryWords = 150; // TODO: Add slider UI to let users adjust this
+    const [summaryWords, setSummaryWords] = useState(150);
 
     const loadRecommendations = useCallback(async () => {
         if (!session?.access_token) {

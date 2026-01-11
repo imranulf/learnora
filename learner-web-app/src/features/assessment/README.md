@@ -106,6 +106,77 @@ if (next.is_complete) {
 }
 ```
 
+### Adaptive Quiz (IRT 2PL + BKT)
+```typescript
+// Create adaptive quiz - items selected based on user's ability
+const quiz = await fetch('/api/v1/assessment/quizzes', {
+  method: 'POST',
+  body: JSON.stringify({
+    title: 'Python Basics Quiz',
+    skill: 'python',
+    difficulty: 'intermediate',
+    total_items: 10,
+    is_adaptive: true  // Uses CAT for item selection
+  })
+});
+
+// Option A: Submit all at once
+const result = await fetch(`/api/v1/assessment/quizzes/${quiz.id}/submit`, {
+  method: 'POST',
+  body: JSON.stringify({
+    responses: [
+      { item_id: 1, selected_index: 2 },
+      { item_id: 2, selected_index: 0 },
+      // ...
+    ]
+  })
+});
+// Returns: theta_estimate, theta_se, mastery_updated, score
+
+// Option B: Item-by-item adaptive (real-time theta updates)
+let nextItem = await fetch(`/api/v1/assessment/quizzes/${quiz.id}/next-item`);
+
+while (!nextItem.is_last) {
+  // Show item to user, get response
+  const response = await fetch(`/api/v1/assessment/quizzes/${quiz.id}/respond-item`, {
+    method: 'POST',
+    body: JSON.stringify({ item_id: nextItem.item_code, selected_index: userAnswer })
+  });
+
+  console.log('Updated theta:', response.new_theta);
+  console.log('Items remaining:', response.items_remaining);
+
+  // Get next item (selected based on updated theta)
+  nextItem = await fetch(`/api/v1/assessment/quizzes/${quiz.id}/next-item`);
+}
+```
+
+### MCQ Generation
+```typescript
+// Generate questions for a concept
+const mcqs = await fetch('/api/v1/assessment/mcq/generate', {
+  method: 'POST',
+  body: JSON.stringify({
+    concept_name: 'Binary Search Trees',
+    difficulty: 'Intermediate',
+    question_count: 5,
+    learning_path_thread_id: 'optional-thread-id'  // For prerequisite context
+  })
+});
+
+// Generate and save to item bank
+const saved = await fetch('/api/v1/assessment/mcq/generate-and-save', {
+  method: 'POST',
+  body: JSON.stringify({
+    concept_name: 'Recursion',
+    skill: 'algorithms',
+    difficulty: 'Advanced',
+    question_count: 10
+  })
+});
+console.log('Saved items:', saved.item_codes);
+```
+
 ## Types
 
 ### AssessmentResult
@@ -129,6 +200,39 @@ interface LearningGap {
   mastery_level: number;
   priority: 'low' | 'medium' | 'high';
   recommended_difficulty: string;
+}
+```
+
+### QuizResult (NEW)
+```typescript
+interface QuizResult {
+  id: number;
+  quiz_id: number;
+  score: number;              // 0.0 to 1.0
+  correct_count: number;
+  total_count: number;
+  time_taken_minutes?: number;
+  created_at: string;
+
+  // IRT ability estimates
+  theta_estimate?: number;    // Updated ability after quiz
+  theta_se?: number;          // Standard error
+  theta_before?: number;      // Ability before quiz
+  mastery_updated: boolean;   // Whether BKT was updated
+}
+```
+
+### AdaptiveItemResponse (NEW)
+```typescript
+interface AdaptiveItemResponse {
+  is_correct: boolean;
+  correct_index: number;
+  explanation?: string;
+  new_theta: number;          // Updated ability estimate
+  new_se: number;             // Standard error
+  items_answered: number;
+  items_remaining: number;
+  quiz_complete: boolean;
 }
 ```
 
@@ -171,10 +275,33 @@ const theme = createTheme({
 
 Requires the following backend endpoints to be available:
 
-- `POST /api/assessment/start` - Start new assessment
-- `GET /api/assessment/history` - Get user's assessments
-- `POST /api/assessment/adaptive/start` - Begin adaptive testing
-- `POST /api/assessment/adaptive/{id}/respond` - Submit response
+### Assessment Sessions (CAT-based)
+- `POST /api/v1/assessment/sessions` - Start new assessment session
+- `GET /api/v1/assessment/sessions` - Get user's assessments
+- `GET /api/v1/assessment/sessions/{id}/next-item` - Get next adaptive item
+- `POST /api/v1/assessment/sessions/{id}/respond` - Submit response with IRT update
+
+### Adaptive Quizzes (NEW)
+- `POST /api/v1/assessment/quizzes` - Create quiz (adaptive or fixed)
+- `GET /api/v1/assessment/quizzes` - List user's quizzes
+- `GET /api/v1/assessment/quizzes/{id}` - Get quiz details
+- `GET /api/v1/assessment/quizzes/{id}/items` - Get all quiz items
+- `POST /api/v1/assessment/quizzes/{id}/submit` - Submit quiz (updates theta + BKT)
+- `GET /api/v1/assessment/quizzes/{id}/results` - Get quiz results history
+
+### Item-by-Item Adaptive Testing (NEW)
+- `GET /api/v1/assessment/quizzes/{id}/next-item` - Get next CAT-selected item
+- `POST /api/v1/assessment/quizzes/{id}/respond-item` - Submit single response (updates theta)
+
+### MCQ Generation (AI-powered)
+- `POST /api/v1/assessment/mcq/generate` - Generate MCQs for a concept
+- `POST /api/v1/assessment/mcq/generate-and-save` - Generate and save to item bank
+
+### Knowledge State
+- `GET /api/v1/assessment/knowledge-state` - Get BKT mastery probabilities
+- `GET /api/v1/assessment/learning-gaps` - Get identified learning gaps
+
+### AI Learning Path
 - `GET /api/ai/status` - Check AI availability
 - `POST /api/ai/learning-path/start` - Start AI assessment
 - `POST /api/ai/learning-path/respond` - Continue AI conversation

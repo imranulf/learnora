@@ -12,6 +12,15 @@ import type {
   KnowledgeStateResponse,
   LearningGapResponse,
   NextItemResponse,
+  // Quiz types
+  QuizCreate,
+  QuizResponse,
+  QuizSubmit,
+  QuizResultResponse,
+  AdaptiveItemResponse,
+  // MCQ types
+  MCQGenerationResponse,
+  MCQSaveResponse,
 } from './types';
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -200,6 +209,211 @@ export async function listAssessmentItems(
 }
 
 // ============================================================================
+// Quiz Management (Adaptive Quiz System with IRT 2PL + BKT)
+// ============================================================================
+
+/**
+ * Create a new quiz
+ * POST /api/v1/assessment/quizzes
+ *
+ * For adaptive quizzes (is_adaptive=true):
+ * - Items are selected based on user's current ability (theta)
+ * - Uses CAT with Fisher information maximization
+ */
+export async function createQuiz(quiz: QuizCreate): Promise<QuizResponse> {
+  return fetchAPI<QuizResponse>(`${API_V1_PREFIX}/assessment/quizzes`, {
+    method: 'POST',
+    body: JSON.stringify(quiz),
+  });
+}
+
+/**
+ * List all quizzes for the current user
+ * GET /api/v1/assessment/quizzes?status={status}
+ */
+export async function listQuizzes(
+  status?: 'active' | 'completed' | 'expired'
+): Promise<QuizResponse[]> {
+  const url = status
+    ? `${API_V1_PREFIX}/assessment/quizzes?status_filter=${status}`
+    : `${API_V1_PREFIX}/assessment/quizzes`;
+
+  return fetchAPI<QuizResponse[]>(url);
+}
+
+/**
+ * Get a specific quiz
+ * GET /api/v1/assessment/quizzes/{id}
+ */
+export async function getQuiz(quizId: number): Promise<QuizResponse> {
+  return fetchAPI<QuizResponse>(`${API_V1_PREFIX}/assessment/quizzes/${quizId}`);
+}
+
+/**
+ * Get all items for a quiz
+ * GET /api/v1/assessment/quizzes/{id}/items
+ */
+export async function getQuizItems(quizId: number): Promise<ItemResponse[]> {
+  return fetchAPI<ItemResponse[]>(
+    `${API_V1_PREFIX}/assessment/quizzes/${quizId}/items`
+  );
+}
+
+/**
+ * Submit quiz responses and get results
+ * POST /api/v1/assessment/quizzes/{id}/submit
+ *
+ * This endpoint:
+ * - Grades all responses
+ * - Updates theta using IRT 2PL MLE
+ * - Updates BKT mastery probability
+ * - Returns detailed results with ability estimates
+ */
+export async function submitQuiz(
+  quizId: number,
+  responses: QuizSubmit
+): Promise<QuizResultResponse> {
+  return fetchAPI<QuizResultResponse>(
+    `${API_V1_PREFIX}/assessment/quizzes/${quizId}/submit`,
+    {
+      method: 'POST',
+      body: JSON.stringify(responses),
+    }
+  );
+}
+
+/**
+ * Get results history for a quiz
+ * GET /api/v1/assessment/quizzes/{id}/results
+ */
+export async function getQuizResults(
+  quizId: number
+): Promise<QuizResultResponse[]> {
+  return fetchAPI<QuizResultResponse[]>(
+    `${API_V1_PREFIX}/assessment/quizzes/${quizId}/results`
+  );
+}
+
+// ============================================================================
+// Item-by-Item Adaptive Quiz (Real-time theta updates)
+// ============================================================================
+
+/**
+ * Get the next adaptive item for a quiz
+ * GET /api/v1/assessment/quizzes/{id}/next-item
+ *
+ * For adaptive quizzes, items are selected using CAT:
+ * - Fisher information maximization at current theta
+ * - Returns most informative item for ability estimation
+ */
+export async function getNextQuizItem(
+  quizId: number
+): Promise<NextItemResponse> {
+  return fetchAPI<NextItemResponse>(
+    `${API_V1_PREFIX}/assessment/quizzes/${quizId}/next-item`
+  );
+}
+
+/**
+ * Submit a single item response for an adaptive quiz
+ * POST /api/v1/assessment/quizzes/{id}/respond-item
+ *
+ * Updates theta after each response using IRT 2PL MLE.
+ * Next item will be selected based on updated theta.
+ */
+export async function submitQuizItemResponse(
+  quizId: number,
+  itemId: number,
+  selectedIndex: number
+): Promise<AdaptiveItemResponse> {
+  const params = new URLSearchParams({
+    item_id: itemId.toString(),
+    selected_index: selectedIndex.toString(),
+  });
+
+  return fetchAPI<AdaptiveItemResponse>(
+    `${API_V1_PREFIX}/assessment/quizzes/${quizId}/respond-item?${params}`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
+// MCQ Generation (AI-powered question generation)
+// ============================================================================
+
+/**
+ * Generate MCQ questions using AI
+ * POST /api/v1/assessment/mcq/generate
+ *
+ * Uses LangChain with Gemini for structured MCQ generation.
+ * Optionally uses learning path context for prerequisite-aware questions.
+ */
+export async function generateMCQs(
+  conceptName: string,
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' = 'Intermediate',
+  questionCount: number = 5,
+  options?: {
+    conceptDescription?: string;
+    learningPathThreadId?: string;
+    conceptId?: string;
+  }
+): Promise<MCQGenerationResponse> {
+  const params = new URLSearchParams({
+    concept_name: conceptName,
+    difficulty: difficulty,
+    question_count: questionCount.toString(),
+  });
+
+  if (options?.conceptDescription) {
+    params.append('concept_description', options.conceptDescription);
+  }
+  if (options?.learningPathThreadId) {
+    params.append('learning_path_thread_id', options.learningPathThreadId);
+  }
+  if (options?.conceptId) {
+    params.append('concept_id', options.conceptId);
+  }
+
+  return fetchAPI<MCQGenerationResponse>(
+    `${API_V1_PREFIX}/assessment/mcq/generate?${params}`,
+    { method: 'POST' }
+  );
+}
+
+/**
+ * Generate MCQ questions and save to item bank
+ * POST /api/v1/assessment/mcq/generate-and-save
+ *
+ * Generates MCQs and saves them with IRT parameters:
+ * - Beginner: a=0.8, b=-1.5
+ * - Intermediate: a=1.0, b=0.0
+ * - Advanced: a=1.2, b=1.5
+ */
+export async function generateAndSaveMCQs(
+  conceptName: string,
+  skill: string,
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' = 'Intermediate',
+  questionCount: number = 5,
+  conceptDescription?: string
+): Promise<MCQSaveResponse> {
+  const params = new URLSearchParams({
+    concept_name: conceptName,
+    skill: skill,
+    difficulty: difficulty,
+    question_count: questionCount.toString(),
+  });
+
+  if (conceptDescription) {
+    params.append('concept_description', conceptDescription);
+  }
+
+  return fetchAPI<MCQSaveResponse>(
+    `${API_V1_PREFIX}/assessment/mcq/generate-and-save?${params}`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
 // Exports
 // ============================================================================
 
@@ -209,7 +423,7 @@ export default {
   getAssessmentSession,
   listAssessmentSessions,
 
-  // Adaptive testing
+  // Adaptive testing (sessions)
   getNextAdaptiveItem,
   submitItemResponse,
 
@@ -223,4 +437,20 @@ export default {
   // Item management
   createAssessmentItem,
   listAssessmentItems,
+
+  // Quiz management
+  createQuiz,
+  listQuizzes,
+  getQuiz,
+  getQuizItems,
+  submitQuiz,
+  getQuizResults,
+
+  // Item-by-item adaptive quiz
+  getNextQuizItem,
+  submitQuizItemResponse,
+
+  // MCQ generation
+  generateMCQs,
+  generateAndSaveMCQs,
 };

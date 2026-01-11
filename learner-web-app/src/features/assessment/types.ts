@@ -106,6 +106,105 @@ export interface LearningGapResponse {
 }
 
 // ============================================================================
+// Quiz Types (Adaptive Quiz System with IRT 2PL + BKT)
+// ============================================================================
+
+export interface QuizCreate {
+  title: string;
+  skill: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  total_items: number;
+  is_adaptive?: boolean; // If true, uses CAT for item selection
+}
+
+export interface QuizResponse {
+  id: number;
+  user_id: number;
+  title: string;
+  skill: string;
+  difficulty: string;
+  items: number[]; // List of item IDs
+  total_items: number;
+  is_adaptive: boolean;
+  status: 'active' | 'completed' | 'expired';
+  created_at: string;
+  expires_at: string | null;
+}
+
+export interface QuizSubmit {
+  responses: Array<{
+    item_id: number;
+    selected_index: number;
+  }>;
+}
+
+export interface QuizResultResponse {
+  id: number;
+  quiz_id: number;
+  score: number; // 0.0 to 1.0
+  correct_count: number;
+  total_count: number;
+  time_taken_minutes: number | null;
+  created_at: string;
+  // IRT ability estimates
+  theta_estimate: number | null; // Updated ability after quiz
+  theta_se: number | null; // Standard error
+  theta_before: number | null; // Ability before quiz
+  mastery_updated: boolean; // Whether BKT was updated
+}
+
+export interface AdaptiveItemResponse {
+  is_correct: boolean;
+  correct_index: number;
+  explanation: string | null;
+  new_theta: number; // Updated ability estimate
+  new_se: number; // Standard error
+  items_answered: number;
+  items_remaining: number;
+  quiz_complete: boolean;
+}
+
+// ============================================================================
+// MCQ Generation Types
+// ============================================================================
+
+export interface MCQGenerationRequest {
+  concept_name: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
+  question_count: number;
+  concept_description?: string;
+  learning_path_thread_id?: string;
+  concept_id?: string;
+}
+
+export interface MCQQuestion {
+  question: string;
+  options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correct_answer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+}
+
+export interface MCQGenerationResponse {
+  concept_name: string;
+  difficulty: string;
+  question_count: number;
+  questions: MCQQuestion[];
+}
+
+export interface MCQSaveResponse {
+  message: string;
+  concept_name: string;
+  skill: string;
+  difficulty: string;
+  item_codes: string[];
+}
+
+// ============================================================================
 // Legacy Types (for backward compatibility - to be removed)
 // ============================================================================
 

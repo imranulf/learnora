@@ -1,74 +1,143 @@
+/**
+ * Home Page (Dashboard)
+ *
+ * The central hub for learners featuring:
+ * - Personalized welcome and quick stats
+ * - "What to do next" guidance
+ * - Quick access to all core features
+ *
+ * Designed to be welcoming and clear for learners of all backgrounds.
+ */
 import {
-  Assessment,
+  Add as AddIcon,
   AutoStories,
-  CheckCircle, ErrorOutline,
+  CheckCircle,
+  EmojiEvents,
+  ErrorOutline,
+  Explore,
+  PlayArrow,
   Psychology,
+  Quiz,
   School,
-  Search,
-  TrendingUp
+  TrendingUp,
 } from '@mui/icons-material';
 import {
   Alert,
   Box,
   Button,
+  Card,
+  CardActionArea,
+  CardContent,
+  Chip,
   CircularProgress,
-  List, ListItem,
-  ListItemIcon,
-  ListItemText,
+  Grid,
+  LinearProgress,
   Paper,
   Stack,
-  Typography
+  Typography,
 } from '@mui/material';
-import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
 import { getDashboardStats, type DashboardStats } from '../services/dashboard';
+import { getLearningPaths, type LearningPath } from '../services/learningPath';
+import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
 
-// Icon mapping for Material-UI
-const iconMap: Record<string, React.ReactNode> = {
-  School: <School />,
-  Assessment: <Assessment />,
-  Psychology: <Psychology />,
-  Search: <Search />,
-};
-
-export default function DashboardPage() {
+export default function HomePage() {
   const { session } = useSession();
   const navigate = useNavigate();
-  const userName = session?.user?.first_name || session?.user?.name || 'Learner';
+  const userName = session?.user?.first_name || session?.user?.name || session?.user?.email?.split('@')[0] || 'Learner';
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [paths, setPaths] = useState<LearningPath[]>([]);
+  const [progress, setProgress] = useState<Record<string, PathProgress>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       if (!session?.access_token) {
         setLoading(false);
-        setError('Please sign in to view your dashboard');
         return;
       }
 
       try {
         setLoading(true);
         setError(null);
-        const data = await getDashboardStats(session.access_token);
-        setStats(data);
+
+        // Fetch all data in parallel
+        const [statsData, pathsData] = await Promise.all([
+          getDashboardStats(session.access_token).catch(() => null),
+          getLearningPaths(session.access_token).catch(() => []),
+        ]);
+
+        setStats(statsData);
+        setPaths(pathsData);
+
+        // Fetch progress for each path
+        if (pathsData.length > 0) {
+          const progressMap: Record<string, PathProgress> = {};
+          for (const path of pathsData.slice(0, 3)) {
+            try {
+              const pathProgress = await getPathProgress(session.access_token, path.thread_id);
+              progressMap[path.thread_id] = pathProgress;
+            } catch {
+              // Progress might not exist yet
+            }
+          }
+          setProgress(progressMap);
+        }
       } catch (err) {
-        console.error('Failed to fetch dashboard stats:', err);
+        console.error('Failed to fetch dashboard data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load dashboard');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchStats();
+    fetchData();
   }, [session?.access_token]);
+
+  // Determine what to suggest next
+  const getNextSuggestion = () => {
+    const activePaths = paths.filter((p) => progress[p.thread_id]?.overall_progress !== 100);
+
+    if (paths.length === 0) {
+      return {
+        type: 'new-path',
+        title: 'Create Your First Learning Path',
+        description: 'Tell us what you want to learn and we\'ll create a personalized path just for you.',
+        action: () => navigate('/learn'),
+        icon: <AddIcon />,
+      };
+    }
+
+    if (activePaths.length > 0) {
+      const nextPath = activePaths[0];
+      const nextProgress = progress[nextPath.thread_id]?.overall_progress || 0;
+      return {
+        type: 'continue',
+        title: `Continue: ${nextPath.topic || 'Learning Path'}`,
+        description: `You're ${nextProgress.toFixed(0)}% through this path. Keep going!`,
+        action: () => navigate(`/learning-path?thread=${nextPath.thread_id}`),
+        icon: <PlayArrow />,
+      };
+    }
+
+    return {
+      type: 'practice',
+      title: 'Practice Your Skills',
+      description: 'Take a quiz to reinforce what you\'ve learned.',
+      action: () => navigate('/practice'),
+      icon: <Quiz />,
+    };
+  };
+
+  const nextSuggestion = getNextSuggestion();
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />
       </Box>
     );
@@ -85,226 +154,371 @@ export default function DashboardPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Welcome Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
-          Welcome back, {userName}! 👋
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Continue your learning journey with personalized AI-powered paths
-        </Typography>
-      </Box>
-
-      {/* Quick Stats */}
-      <Stack direction="row" spacing={2} sx={{ mb: 4, flexWrap: 'wrap' }}>
-        <Paper
-          sx={{
-            p: 3,
-            flex: 1,
-            minWidth: 200,
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            borderRadius: 3,
-          }}
-        >
-          <School sx={{ fontSize: 40, mb: 1 }} />
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {stats?.active_paths ?? 0}
-          </Typography>
-          <Typography variant="body2">Active Paths</Typography>
-        </Paper>
-
-        <Paper
-          sx={{
-            p: 3,
-            flex: 1,
-            minWidth: 200,
-            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-            color: 'white',
-            borderRadius: 3,
-          }}
-        >
-          <AutoStories sx={{ fontSize: 40, mb: 1 }} />
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {stats?.concepts_learned ?? 0}
-          </Typography>
-          <Typography variant="body2">Concepts Learned</Typography>
-        </Paper>
-
-        <Paper
-          sx={{
-            p: 3,
-            flex: 1,
-            minWidth: 200,
-            background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-            color: 'white',
-            borderRadius: 3,
-          }}
-        >
-          <Assessment sx={{ fontSize: 40, mb: 1 }} />
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {stats?.assessments_completed ?? 0}
-          </Typography>
-          <Typography variant="body2">Assessments</Typography>
-        </Paper>
-
-        <Paper
-          sx={{
-            p: 3,
-            flex: 1,
-            minWidth: 200,
-            background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-            color: 'white',
-            borderRadius: 3,
-          }}
-        >
-          <TrendingUp sx={{ fontSize: 40, mb: 1 }} />
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {stats?.average_progress?.toFixed(1) ?? 0}%
-          </Typography>
-          <Typography variant="body2">Average Progress</Typography>
-        </Paper>
-      </Stack>
-
-      {/* Main Content */}
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
-        {/* Learning Paths Section */}
-        <Box sx={{ flex: 2 }}>
-          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Your Learning Paths
+    <Box>
+      {/* Welcome Section with Next Step */}
+      <Paper
+        sx={{
+          p: 4,
+          mb: 4,
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+        }}
+      >
+        <Grid container spacing={3} alignItems="center">
+          <Grid size={{ xs: 12, md: 7 }}>
+            <Typography variant="h4" gutterBottom sx={{ fontWeight: 600 }}>
+              Welcome back, {userName}!
             </Typography>
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <School sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                No learning paths yet
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Start your personalized learning journey with AI-powered path planning
+            <Typography variant="body1" sx={{ opacity: 0.9, mb: 3 }}>
+              Ready to continue your learning journey?
+            </Typography>
+
+            {/* Primary Call to Action */}
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={nextSuggestion.icon}
+              onClick={nextSuggestion.action}
+              sx={{
+                bgcolor: 'white',
+                color: 'primary.main',
+                '&:hover': { bgcolor: 'grey.100' },
+                borderRadius: 2,
+                px: 4,
+                py: 1.5,
+                textTransform: 'none',
+                fontWeight: 600,
+              }}
+            >
+              {nextSuggestion.title}
+            </Button>
+            <Typography variant="body2" sx={{ mt: 1, opacity: 0.8 }}>
+              {nextSuggestion.description}
+            </Typography>
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Stack direction="row" spacing={2} flexWrap="wrap" justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+              <Box sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                  {stats?.active_paths ?? paths.length}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  Learning Paths
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                  {stats?.concepts_learned ?? 0}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  Concepts
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                  {stats?.average_progress?.toFixed(0) ?? 0}%
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  Progress
+                </Typography>
+              </Box>
+            </Stack>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Quick Navigation Cards */}
+      <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+        What would you like to do?
+      </Typography>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Card
+            sx={{
+              height: '100%',
+              borderRadius: 3,
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
+            }}
+          >
+            <CardActionArea onClick={() => navigate('/learn')} sx={{ height: '100%', p: 2 }}>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <AutoStories sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Learn
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Continue your paths
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Card
+            sx={{
+              height: '100%',
+              borderRadius: 3,
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
+            }}
+          >
+            <CardActionArea onClick={() => navigate('/practice')} sx={{ height: '100%', p: 2 }}>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <Quiz sx={{ fontSize: 48, color: 'secondary.main', mb: 1 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Practice
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Test your skills
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Card
+            sx={{
+              height: '100%',
+              borderRadius: 3,
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
+            }}
+          >
+            <CardActionArea onClick={() => navigate('/discover')} sx={{ height: '100%', p: 2 }}>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <Explore sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Discover
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Find new content
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+
+        <Grid size={{ xs: 6, md: 3 }}>
+          <Card
+            sx={{
+              height: '100%',
+              borderRadius: 3,
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
+            }}
+          >
+            <CardActionArea onClick={() => navigate('/profile')} sx={{ height: '100%', p: 2 }}>
+              <CardContent sx={{ textAlign: 'center' }}>
+                <Psychology sx={{ fontSize: 48, color: 'warning.main', mb: 1 }} />
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Profile
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Your progress
+                </Typography>
+              </CardContent>
+            </CardActionArea>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Main Content Area */}
+      <Grid container spacing={3}>
+        {/* Active Learning Paths */}
+        <Grid size={{ xs: 12, md: 8 }}>
+          <Paper sx={{ p: 3, borderRadius: 3 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Your Learning Paths
               </Typography>
               <Button
-                variant="contained"
-                size="large"
-                onClick={() => navigate('/learning-path')}
-                sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 2,
-                  px: 4,
-                  py: 1.5,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                }}
+                size="small"
+                onClick={() => navigate('/learn')}
+                sx={{ textTransform: 'none' }}
               >
-                Create Learning Path
+                View All
               </Button>
-            </Box>
-          </Paper>
+            </Stack>
 
-          {/* Recent Activity */}
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Recent Activity
-            </Typography>
-            {stats?.recent_activity && stats.recent_activity.length > 0 ? (
-              <List>
-                {stats.recent_activity.map((activity, index) => (
-                  <ListItem key={index}>
-                    <ListItemIcon>
-                      {iconMap[activity.icon] || <CheckCircle />}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={activity.title}
-                      secondary={`${activity.description} • ${new Date(activity.timestamp).toLocaleDateString()}`}
-                    />
-                  </ListItem>
-                ))}
-              </List>
+            {paths.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <School sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  Start Your Learning Journey
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400, mx: 'auto' }}>
+                  Create a personalized learning path based on what you want to learn.
+                  Our AI will guide you step by step.
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => navigate('/learn')}
+                  sx={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                  }}
+                >
+                  Create Learning Path
+                </Button>
+              </Box>
             ) : (
-              <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Stack spacing={2}>
+                {paths.slice(0, 3).map((path) => {
+                  const pathProgress = progress[path.thread_id]?.overall_progress || 0;
+                  const isCompleted = pathProgress === 100;
+
+                  return (
+                    <Card
+                      key={path.thread_id}
+                      variant="outlined"
+                      sx={{
+                        borderRadius: 2,
+                        transition: 'all 0.2s',
+                        '&:hover': { borderColor: 'primary.main', boxShadow: 1 },
+                      }}
+                    >
+                      <CardActionArea
+                        onClick={() => navigate(`/learning-path?thread=${path.thread_id}`)}
+                        sx={{ p: 2 }}
+                      >
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                              {path.topic || 'Learning Path'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {path.goal || 'Personalized learning journey'}
+                            </Typography>
+                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            {isCompleted ? (
+                              <Chip
+                                icon={<CheckCircle />}
+                                label="Completed"
+                                color="success"
+                                size="small"
+                              />
+                            ) : (
+                              <Box sx={{ minWidth: 100 }}>
+                                <Typography variant="body2" color="text.secondary" align="right">
+                                  {pathProgress.toFixed(0)}%
+                                </Typography>
+                                <LinearProgress
+                                  variant="determinate"
+                                  value={pathProgress}
+                                  sx={{ height: 6, borderRadius: 3 }}
+                                />
+                              </Box>
+                            )}
+                          </Stack>
+                        </Stack>
+                      </CardActionArea>
+                    </Card>
+                  );
+                })}
+              </Stack>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Sidebar */}
+        <Grid size={{ xs: 12, md: 4 }}>
+          {/* Achievements / Encouragement */}
+          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+              <EmojiEvents color="warning" />
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Your Achievements
+              </Typography>
+            </Stack>
+
+            {(stats?.concepts_learned ?? 0) > 0 ? (
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      bgcolor: 'success.light',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <TrendingUp color="success" />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {stats?.concepts_learned} Concepts Learned
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Keep up the great work!
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {(stats?.assessments_completed ?? 0) > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        bgcolor: 'primary.light',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Quiz color="primary" />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {stats?.assessments_completed} Assessments Completed
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Testing your knowledge
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Stack>
+            ) : (
+              <Box sx={{ textAlign: 'center', py: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  No recent activity yet. Start learning to see your progress here!
+                  Complete lessons and quizzes to earn achievements!
                 </Typography>
               </Box>
             )}
           </Paper>
-        </Box>
 
-        {/* Sidebar */}
-        <Box sx={{ flex: 1 }}>
-          {/* Quick Actions */}
-          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
+          {/* Quick Tips */}
+          <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'grey.50' }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Quick Actions
+              Learning Tips
             </Typography>
-            <Stack spacing={2} sx={{ mt: 2 }}>
-              {stats?.quick_actions && stats.quick_actions.length > 0 ? (
-                stats.quick_actions.map((action) => (
-                  <Button
-                    key={action.id}
-                    variant="outlined"
-                    fullWidth
-                    startIcon={iconMap[action.icon] || <School />}
-                    onClick={() => navigate(action.route)}
-                    sx={{ justifyContent: 'flex-start', textTransform: 'none', py: 1.5 }}
-                  >
-                    <Box sx={{ textAlign: 'left', flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {action.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {action.description}
-                      </Typography>
-                    </Box>
-                  </Button>
-                ))
-              ) : (
-                <>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<School />}
-                    onClick={() => navigate('/learning-path')}
-                    sx={{ justifyContent: 'flex-start', textTransform: 'none', py: 1.5 }}
-                  >
-                    New Learning Path
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<Assessment />}
-                    onClick={() => navigate('/assessment')}
-                    sx={{ justifyContent: 'flex-start', textTransform: 'none', py: 1.5 }}
-                  >
-                    Take Assessment
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<AutoStories />}
-                    onClick={() => navigate('/user-knowledge')}
-                    sx={{ justifyContent: 'flex-start', textTransform: 'none', py: 1.5 }}
-                  >
-                    Browse Concepts
-                  </Button>
-                </>
-              )}
+            <Stack spacing={1.5}>
+              <Typography variant="body2" color="text.secondary">
+                Set a daily goal and stick to it - even 15 minutes helps!
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Take practice quizzes to reinforce what you learn.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Don't rush - understanding is more important than speed.
+              </Typography>
             </Stack>
           </Paper>
-
-          {/* Knowledge Progress */}
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-              Knowledge Progress
-            </Typography>
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
-                Complete assessments to track your knowledge growth
-              </Typography>
-            </Box>
-          </Paper>
-        </Box>
-      </Stack>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

@@ -84,9 +84,9 @@ const QUICK_QUIZ_SKILLS = [
 ];
 
 export default function PracticePage() {
-  const { session } = useSession();
+  const { session, loading: sessionLoading } = useSession();
   const [activeTab, setActiveTab] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Assessment state
@@ -102,10 +102,14 @@ export default function PracticePage() {
   // Load data
   useEffect(() => {
     const fetchData = async () => {
-      if (!session?.access_token) return;
+      if (sessionLoading) return;
+      if (!session?.access_token) {
+        setDataLoading(false);
+        return;
+      }
 
       try {
-        setLoading(true);
+        setDataLoading(true);
         setError(null);
 
         const [assessmentData, quizData] = await Promise.all([
@@ -118,12 +122,12 @@ export default function PracticePage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load practice data');
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     };
 
     fetchData();
-  }, [session?.access_token]);
+  }, [session?.access_token, sessionLoading]);
 
   const handleRefresh = async () => {
     const [assessmentData, quizData] = await Promise.all([
@@ -163,7 +167,7 @@ export default function PracticePage() {
     handleRefresh();
   };
 
-  if (loading) {
+  if (sessionLoading || dataLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />

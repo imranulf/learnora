@@ -44,25 +44,27 @@ import { getLearningPaths, type LearningPath } from '../services/learningPath';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
 
 export default function HomePage() {
-  const { session } = useSession();
+  const { session, loading: sessionLoading } = useSession();
   const navigate = useNavigate();
   const userName = session?.user?.first_name || session?.user?.name || session?.user?.email?.split('@')[0] || 'Learner';
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [progress, setProgress] = useState<Record<string, PathProgress>>({});
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (sessionLoading) return; // Wait for session to load
+
       if (!session?.access_token) {
-        setLoading(false);
+        setDataLoading(false);
         return;
       }
 
       try {
-        setLoading(true);
+        setDataLoading(true);
         setError(null);
 
         // Fetch all data in parallel
@@ -91,12 +93,12 @@ export default function HomePage() {
         console.error('Failed to fetch dashboard data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load dashboard');
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     };
 
     fetchData();
-  }, [session?.access_token]);
+  }, [session?.access_token, sessionLoading]);
 
   // Determine what to suggest next
   const getNextSuggestion = () => {
@@ -135,7 +137,8 @@ export default function HomePage() {
 
   const nextSuggestion = getNextSuggestion();
 
-  if (loading) {
+  // Show loading while session or data is loading
+  if (sessionLoading || dataLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />

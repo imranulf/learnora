@@ -59,20 +59,24 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 export default function LearnPage() {
-  const { session } = useSession();
+  const { session, loading: sessionLoading } = useSession();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [progress, setProgress] = useState<Record<string, PathProgress>>({});
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!session?.access_token) return;
+      if (sessionLoading) return;
+      if (!session?.access_token) {
+        setDataLoading(false);
+        return;
+      }
 
       try {
-        setLoading(true);
+        setDataLoading(true);
         setError(null);
 
         // Fetch learning paths
@@ -96,12 +100,12 @@ export default function LearnPage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load learning data');
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     };
 
     fetchData();
-  }, [session?.access_token]);
+  }, [session?.access_token, sessionLoading]);
 
   const handleCreatePath = () => {
     navigate('/learning-path');
@@ -111,7 +115,7 @@ export default function LearnPage() {
     navigate(`/learning-path?thread=${threadId}`);
   };
 
-  if (loading) {
+  if (sessionLoading || dataLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />

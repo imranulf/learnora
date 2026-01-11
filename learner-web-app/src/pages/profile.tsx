@@ -83,9 +83,9 @@ const LEARNING_STYLES = ['visual', 'auditory', 'reading', 'kinesthetic', 'balanc
 const DIFFICULTY_LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'];
 
 export default function ProfilePage() {
-  const { session } = useSession();
+  const { session, loading: sessionLoading } = useSession();
   const [activeTab, setActiveTab] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -106,9 +106,13 @@ export default function ProfilePage() {
   const [knowledgeSummary, setKnowledgeSummary] = useState<UserKnowledgeSummary | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!session?.access_token) return;
+    if (sessionLoading) return;
+    if (!session?.access_token) {
+      setDataLoading(false);
+      return;
+    }
 
-    setLoading(true);
+    setDataLoading(true);
     setError(null);
     try {
       const [prefs, insightsData, knowledgeData] = await Promise.all([
@@ -132,9 +136,9 @@ export default function ProfilePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load profile data');
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
-  }, [session?.access_token]);
+  }, [session?.access_token, sessionLoading]);
 
   useEffect(() => {
     loadData();
@@ -200,7 +204,7 @@ export default function ProfilePage() {
     setLearningGoals(learningGoals.filter((g) => g !== goal));
   };
 
-  if (loading) {
+  if (sessionLoading || dataLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />

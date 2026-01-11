@@ -1,11 +1,8 @@
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import CategoryIcon from '@mui/icons-material/Category';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import HubIcon from '@mui/icons-material/Hub';
-import PsychologyIcon from '@mui/icons-material/Psychology';
-import SearchIcon from '@mui/icons-material/Search';
-import SettingsIcon from '@mui/icons-material/Settings';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import AutoStoriesIcon from '@mui/icons-material/AutoStories';
+import ExploreIcon from '@mui/icons-material/Explore';
+import HomeIcon from '@mui/icons-material/Home';
+import PersonIcon from '@mui/icons-material/Person';
+import QuizIcon from '@mui/icons-material/Quiz';
 import { useColorScheme } from '@mui/material/styles';
 import type { Authentication, Navigation } from '@toolpad/core';
 import { ReactRouterAppProvider } from "@toolpad/core/react-router";
@@ -13,49 +10,51 @@ import * as React from 'react';
 import SessionContext, { type Session } from '../../contexts/SessionContext';
 import { getCurrentSession, signOut } from '../../services/auth';
 
+/**
+ * Simplified Navigation Structure
+ *
+ * 5 core sections designed for clarity and ease of use:
+ * 1. Home - Dashboard with personalized guidance
+ * 2. Learn - Learning paths and progress tracking
+ * 3. Practice - Quizzes and skill assessments
+ * 4. Discover - Find new learning content
+ * 5. Profile - Settings and knowledge overview
+ */
 const NAVIGATION: Navigation = [
   {
     kind: 'header',
-    title: 'Main items',
+    title: 'Your Learning',
   },
   {
-    title: 'Dashboard',
-    icon: <DashboardIcon />,
+    title: 'Home',
+    icon: <HomeIcon />,
   },
   {
-    segment: 'user-knowledge',
-    title: 'Knowledge Dashboard',
-    icon: <PsychologyIcon />,
+    segment: 'learn',
+    title: 'Learn',
+    icon: <AutoStoriesIcon />,
   },
   {
-    segment: 'learning-path',
-    title: 'Learning Paths',
-    icon: <AccountTreeIcon />,
+    segment: 'practice',
+    title: 'Practice',
+    icon: <QuizIcon />,
   },
   {
-    segment: 'knowledge-graph',
-    title: 'Knowledge Graph',
-    icon: <HubIcon />,
+    segment: 'discover',
+    title: 'Discover',
+    icon: <ExploreIcon />,
   },
   {
-    segment: 'concept-management',
-    title: 'Concept Management',
-    icon: <CategoryIcon />,
+    kind: 'divider',
   },
   {
-    segment: 'content-discovery',
-    title: 'Discover Content',
-    icon: <SearchIcon />,
+    kind: 'header',
+    title: 'You',
   },
   {
-    segment: 'preferences',
-    title: 'Preferences',
-    icon: <SettingsIcon />,
-  },
-  {
-    segment: 'orders',
-    title: 'Orders',
-    icon: <ShoppingCartIcon />,
+    segment: 'profile',
+    title: 'Profile',
+    icon: <PersonIcon />,
   },
 ];
 

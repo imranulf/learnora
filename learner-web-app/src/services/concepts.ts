@@ -75,7 +75,7 @@ export async function getConcepts(
 }
 
 export async function getConcept(token: string, conceptId: string): Promise<Concept> {
-    const response = await fetch(`${API_BASE_URL}/concepts/${conceptId}`, {
+    const response = await fetch(`${API_BASE_URL}${API_V1_PREFIX}/concepts/${conceptId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

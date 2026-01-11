@@ -1,7 +1,7 @@
 """
 Pydantic schemas for Assessment API.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional, Any
 from datetime import datetime
 
@@ -10,12 +10,24 @@ from datetime import datetime
 
 class ItemBase(BaseModel):
     """Base schema for assessment items."""
-    skill: str
-    discrimination: float = Field(..., alias="a", description="IRT discrimination parameter")
-    difficulty: float = Field(..., alias="b", description="IRT difficulty parameter")
-    text: str
-    choices: Optional[List[str]] = None
-    correct_index: Optional[int] = None
+    skill: str = Field(..., min_length=1, max_length=100, description="Skill/knowledge component tag")
+    discrimination: float = Field(
+        ...,
+        alias="a",
+        gt=0.0,
+        le=10.0,
+        description="IRT discrimination parameter (must be > 0)"
+    )
+    difficulty: float = Field(
+        ...,
+        alias="b",
+        ge=-5.0,
+        le=5.0,
+        description="IRT difficulty parameter (typically in [-5, 5])"
+    )
+    text: str = Field(..., min_length=1, max_length=10000, description="Item stem/prompt")
+    choices: Optional[List[str]] = Field(None, max_length=10, description="Multiple choice options")
+    correct_index: Optional[int] = Field(None, ge=0, description="Index of correct choice")
 
 
 class ItemCreate(ItemBase):
@@ -77,10 +89,20 @@ class AssessmentDashboard(BaseModel):
 
 class ItemResponseSubmit(BaseModel):
     """Schema for submitting item response."""
-    assessment_id: int
-    item_code: str
-    user_response: int = Field(..., description="1 for correct, 0 for incorrect")
-    time_taken_seconds: Optional[int] = None
+    assessment_id: int = Field(..., gt=0, description="Assessment session ID")
+    item_code: str = Field(..., min_length=1, max_length=100, description="Item code")
+    user_response: int = Field(
+        ...,
+        ge=0,
+        le=1,
+        description="1 for correct, 0 for incorrect"
+    )
+    time_taken_seconds: Optional[int] = Field(
+        None,
+        ge=0,
+        le=3600,  # Max 1 hour per item
+        description="Time taken in seconds"
+    )
 
 
 class NextItemResponse(BaseModel):
@@ -130,6 +152,17 @@ class LearningGapResponse(BaseModel):
 class SelfAssessmentSubmit(BaseModel):
     """Schema for self-assessment submission."""
     confidence: Dict[str, int] = Field(..., description="Skill -> Likert 1-5")
+
+    @field_validator('confidence')
+    @classmethod
+    def validate_likert_scale(cls, v: Dict[str, int]) -> Dict[str, int]:
+        """Validate all confidence values are in Likert 1-5 range."""
+        for skill, score in v.items():
+            if not isinstance(score, int) or not (1 <= score <= 5):
+                raise ValueError(
+                    f"Confidence score for '{skill}' must be an integer between 1 and 5, got {score}"
+                )
+        return v
 
 
 # --- Concept Map Schemas ---
@@ -188,7 +221,7 @@ class QuizSubmit(BaseModel):
 
 
 class QuizResultResponse(BaseModel):
-    """Schema for quiz result."""
+    """Schema for quiz result with IRT ability estimates."""
     id: int
     quiz_id: int
     score: float
@@ -196,6 +229,12 @@ class QuizResultResponse(BaseModel):
     total_count: int
     time_taken_minutes: Optional[int]
     created_at: datetime
+
+    # IRT ability estimates
+    theta_estimate: Optional[float] = None  # Updated ability after quiz
+    theta_se: Optional[float] = None  # Standard error
+    theta_before: Optional[float] = None  # Ability before quiz
+    mastery_updated: bool = False  # Whether BKT was updated
 
     class Config:
         from_attributes = True

@@ -50,15 +50,27 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# TODO: Make sure to configure CORS origins properly in production
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure CORS middleware with security-conscious defaults
+# In production, restrict origins, methods, and headers
+if settings.APP_ENV == "production":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,  # Should be set to specific domains
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        max_age=3600,  # Cache preflight for 1 hour
+    )
+else:
+    # Development mode - more permissive but logged
+    logger.warning("Running in development mode with permissive CORS settings")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Register routers
 app.include_router(

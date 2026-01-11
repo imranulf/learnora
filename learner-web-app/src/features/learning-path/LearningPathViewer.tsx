@@ -245,6 +245,14 @@ export default function LearningPathViewer() {
         if (graphData && networkContainer.current) {
             initializeNetwork();
         }
+
+        // Cleanup on unmount - destroy network instance to prevent memory leak
+        return () => {
+            if (networkInstance.current) {
+                networkInstance.current.destroy();
+                networkInstance.current = null;
+            }
+        };
     }, [graphData, initializeNetwork]);
 
     const toggleLayout = () => {

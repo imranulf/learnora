@@ -1,7 +1,7 @@
 """
 Database models for Assessment and Dynamic Knowledge Evaluation.
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, JSON, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, JSON, ForeignKey, Text, CheckConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database.base import Base
@@ -10,6 +10,13 @@ from app.database.base import Base
 class Assessment(Base):
     """Assessment session tracking."""
     __tablename__ = "assessments"
+    __table_args__ = (
+        CheckConstraint("theta_estimate IS NULL OR (theta_estimate >= -5.0 AND theta_estimate <= 5.0)", name="ck_theta_estimate_range"),
+        CheckConstraint("theta_se IS NULL OR theta_se >= 0.0", name="ck_theta_se_positive"),
+        CheckConstraint("llm_overall_score IS NULL OR (llm_overall_score >= 0.0 AND llm_overall_score <= 1.0)", name="ck_llm_score_range"),
+        CheckConstraint("concept_map_score IS NULL OR (concept_map_score >= 0.0 AND concept_map_score <= 1.0)", name="ck_concept_map_score_range"),
+        CheckConstraint("status IN ('in_progress', 'completed', 'abandoned')", name="ck_assessment_status"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
@@ -33,6 +40,11 @@ class Assessment(Base):
 class AssessmentItem(Base):
     """Item bank for adaptive testing."""
     __tablename__ = "assessment_items"
+    __table_args__ = (
+        CheckConstraint("discrimination > 0.0 AND discrimination <= 10.0", name="ck_discrimination_range"),
+        CheckConstraint("difficulty >= -5.0 AND difficulty <= 5.0", name="ck_difficulty_range"),
+        CheckConstraint("correct_index IS NULL OR correct_index >= 0", name="ck_correct_index_positive"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     item_code = Column(String(50), unique=True, nullable=False, index=True)
@@ -53,6 +65,11 @@ class AssessmentItem(Base):
 class AssessmentResponse(Base):
     """User responses to assessment items."""
     __tablename__ = "assessment_responses"
+    __table_args__ = (
+        CheckConstraint("user_response IN (0, 1)", name="ck_user_response_binary"),
+        CheckConstraint("time_taken_seconds IS NULL OR (time_taken_seconds >= 0 AND time_taken_seconds <= 3600)", name="ck_time_taken_range"),
+        CheckConstraint("theta_at_response IS NULL OR (theta_at_response >= -5.0 AND theta_at_response <= 5.0)", name="ck_theta_at_response_range"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False)
@@ -70,6 +87,10 @@ class AssessmentResponse(Base):
 class KnowledgeState(Base):
     """BKT-based knowledge state tracking per skill."""
     __tablename__ = "knowledge_states"
+    __table_args__ = (
+        CheckConstraint("mastery_probability >= 0.0 AND mastery_probability <= 1.0", name="ck_mastery_probability_range"),
+        CheckConstraint("confidence_level IS NULL OR (confidence_level >= 0.0 AND confidence_level <= 1.0)", name="ck_confidence_level_range"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
@@ -88,6 +109,12 @@ class KnowledgeState(Base):
 class LearningGap(Base):
     """Identified learning gaps from assessment."""
     __tablename__ = "learning_gaps"
+    __table_args__ = (
+        CheckConstraint("mastery_level >= 0.0 AND mastery_level <= 1.0", name="ck_mastery_level_range"),
+        CheckConstraint("priority IN ('high', 'medium', 'low')", name="ck_priority_values"),
+        CheckConstraint("recommended_difficulty IN ('beginner', 'intermediate', 'advanced')", name="ck_recommended_difficulty_values"),
+        CheckConstraint("estimated_study_time > 0", name="ck_study_time_positive"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
@@ -110,6 +137,11 @@ class LearningGap(Base):
 class Quiz(Base):
     """Generated quizzes for practice."""
     __tablename__ = "quizzes"
+    __table_args__ = (
+        CheckConstraint("difficulty IN ('beginner', 'intermediate', 'advanced')", name="ck_quiz_difficulty_values"),
+        CheckConstraint("total_items > 0", name="ck_quiz_total_items_positive"),
+        CheckConstraint("status IN ('active', 'completed', 'expired')", name="ck_quiz_status_values"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
@@ -132,6 +164,13 @@ class Quiz(Base):
 class QuizResult(Base):
     """Results from completed quizzes."""
     __tablename__ = "quiz_results"
+    __table_args__ = (
+        CheckConstraint("score >= 0.0 AND score <= 1.0", name="ck_quiz_score_range"),
+        CheckConstraint("correct_count >= 0", name="ck_correct_count_positive"),
+        CheckConstraint("total_count > 0", name="ck_total_count_positive"),
+        CheckConstraint("correct_count <= total_count", name="ck_correct_lte_total"),
+        CheckConstraint("time_taken_minutes IS NULL OR time_taken_minutes >= 0", name="ck_time_taken_positive"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     quiz_id = Column(Integer, ForeignKey("quizzes.id"), nullable=False)
@@ -142,6 +181,12 @@ class QuizResult(Base):
     time_taken_minutes = Column(Integer, nullable=True)
     responses = Column(JSON, nullable=False)  # Detailed response log
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # IRT ability estimates after quiz
+    theta_estimate = Column(Float, nullable=True)  # Updated ability estimate
+    theta_se = Column(Float, nullable=True)  # Standard error of estimate
+    theta_before = Column(Float, nullable=True)  # Ability before quiz
+    mastery_updated = Column(Boolean, default=False)  # Whether BKT mastery was updated
 
     # Relationships
     quiz = relationship("Quiz", back_populates="results")

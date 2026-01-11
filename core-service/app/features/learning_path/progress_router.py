@@ -9,11 +9,11 @@ Provides REST API for:
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict
 from pydantic import BaseModel, Field
 
-from app.database import get_db
+from app.database.session import get_db
 from app.features.users.users import current_active_user as get_current_user, User
 from app.features.learning_path.progress_service import LearningPathProgressService
 
@@ -60,7 +60,7 @@ class NextConceptResponse(BaseModel):
 async def get_learning_path_progress(
     thread_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Dict:
     """
     Get progress for a specific learning path.
@@ -94,7 +94,7 @@ async def update_concept_progress(
     thread_id: str,
     request: UpdateProgressRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Dict:
     """
     Update progress for a specific concept in a learning path.
@@ -143,7 +143,7 @@ async def update_concept_progress(
 async def get_next_concept(
     thread_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Dict:
     """
     Get the next recommended concept to study in the learning path.
@@ -176,7 +176,7 @@ async def get_next_concept(
 async def sync_progress_with_kg(
     thread_id: str,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Dict:
     """
     Sync all concept progress with current Knowledge Graph mastery levels.
@@ -212,7 +212,7 @@ async def initialize_path_progress(
     thread_id: str,
     concept_names: list[str],
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> Dict:
     """
     Initialize progress tracking for a new learning path.

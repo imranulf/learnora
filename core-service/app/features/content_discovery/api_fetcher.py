@@ -119,7 +119,7 @@ class APIContentFetcher:
         """Get video duration in minutes from YouTube API."""
         if not self.youtube_api_key:
             return 0
-        
+
         try:
             url = "https://www.googleapis.com/youtube/v3/videos"
             params = {
@@ -127,18 +127,23 @@ class APIContentFetcher:
                 'id': video_id,
                 'key': self.youtube_api_key
             }
-            
+
             response = requests.get(url, params=params, timeout=5)
+            response.raise_for_status()
             data = response.json()
-            
+
             if data.get('items'):
                 duration_str = data['items'][0]['contentDetails']['duration']
                 # Parse ISO 8601 duration (e.g., "PT15M30S")
                 minutes = self._parse_duration(duration_str)
                 return minutes
-        except:
-            pass
-        
+        except requests.exceptions.RequestException as e:
+            # Log network/API errors but don't fail
+            print(f"YouTube duration API error for {video_id}: {e}")
+        except (KeyError, IndexError, ValueError) as e:
+            # Log parsing errors
+            print(f"YouTube duration parse error for {video_id}: {e}")
+
         return 0
 
     def _parse_duration(self, duration: str) -> int:
@@ -404,15 +409,18 @@ Return ONLY valid JSON with these exact keys."""
 
     def _parse_ai_json(self, text: str) -> Optional[Dict]:
         """Extract JSON from AI response (handles markdown code blocks)."""
-        """Extract JSON from Gemini response (handles markdown code blocks)."""
         try:
             # Remove markdown code blocks if present
             text = text.strip()
             if text.startswith('```'):
                 text = re.sub(r'```(?:json)?\n?', '', text)
-            
+
             return json.loads(text)
-        except:
+        except json.JSONDecodeError as e:
+            print(f"JSON parse error: {e}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error parsing AI JSON: {e}")
             return None
 
     def _infer_difficulty(self, title: str, description: str) -> str:

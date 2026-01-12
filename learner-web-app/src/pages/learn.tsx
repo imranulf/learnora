@@ -12,7 +12,6 @@ import {
   Add as AddIcon,
   AutoStories,
   CheckCircle,
-  ContentCopy as DuplicateIcon,
   Delete as DeleteIcon,
   PlayArrow,
   Timeline,
@@ -79,21 +78,6 @@ export default function LearnPage() {
   const [pathToDelete, setPathToDelete] = useState<LearningPathResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Detect duplicate topics
-  const getDuplicateTopics = () => {
-    const topicCounts: Record<string, number> = {};
-    paths.forEach((path) => {
-      const topic = (path.topic || '').toLowerCase().trim();
-      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-    });
-    return new Set(
-      Object.entries(topicCounts)
-        .filter(([, count]) => count > 1)
-        .map(([topic]) => topic)
-    );
-  };
-
-  const duplicateTopics = getDuplicateTopics();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -169,10 +153,6 @@ export default function LearnPage() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
     setPathToDelete(null);
-  };
-
-  const isDuplicate = (topic: string) => {
-    return duplicateTopics.has((topic || '').toLowerCase().trim());
   };
 
   if (sessionLoading || dataLoading) {
@@ -310,7 +290,6 @@ export default function LearnPage() {
                 {activePaths.map((path) => {
                   const pathProgress = progress[path.conversation_thread_id];
                   const progressPercent = pathProgress?.overall_progress || 0;
-                  const hasDuplicate = isDuplicate(path.topic || '');
 
                   return (
                     <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
@@ -319,8 +298,6 @@ export default function LearnPage() {
                           borderRadius: 3,
                           transition: 'transform 0.2s, box-shadow 0.2s',
                           position: 'relative',
-                          border: hasDuplicate ? '2px solid' : undefined,
-                          borderColor: hasDuplicate ? 'warning.main' : undefined,
                           '&:hover': {
                             transform: 'translateY(-4px)',
                             boxShadow: 4,
@@ -352,16 +329,9 @@ export default function LearnPage() {
                           <CardContent>
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                               <Box sx={{ flex: 1, pr: 4 }}>
-                                <Stack direction="row" alignItems="center" spacing={1}>
-                                  <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                                    {path.topic || 'Learning Path'}
-                                  </Typography>
-                                  {hasDuplicate && (
-                                    <Tooltip title="Duplicate topic detected">
-                                      <DuplicateIcon color="warning" fontSize="small" />
-                                    </Tooltip>
-                                  )}
-                                </Stack>
+                                <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                                  {path.topic || 'Learning Path'}
+                                </Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                   Personalized learning journey
                                 </Typography>
@@ -438,64 +408,52 @@ export default function LearnPage() {
               </Box>
             ) : (
               <Grid container spacing={3}>
-                {completedPaths.map((path) => {
-                  const hasDuplicate = isDuplicate(path.topic || '');
-                  return (
-                    <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
-                      <Card
-                        sx={{
-                          borderRadius: 3,
-                          bgcolor: 'success.light',
-                          position: 'relative',
-                          border: hasDuplicate ? '2px solid' : undefined,
-                          borderColor: hasDuplicate ? 'warning.main' : undefined,
-                        }}
-                      >
-                        {/* Delete Button */}
-                        <Tooltip title="Delete learning path">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => handleDeleteClick(e, path)}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              zIndex: 1,
-                              bgcolor: 'background.paper',
-                              '&:hover': {
-                                bgcolor: 'error.light',
-                                color: 'error.contrastText',
-                              },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                {completedPaths.map((path) => (
+                  <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
+                    <Card
+                      sx={{
+                        borderRadius: 3,
+                        bgcolor: 'success.light',
+                        position: 'relative',
+                      }}
+                    >
+                      {/* Delete Button */}
+                      <Tooltip title="Delete learning path">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleDeleteClick(e, path)}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            zIndex: 1,
+                            bgcolor: 'background.paper',
+                            '&:hover': {
+                              bgcolor: 'error.light',
+                              color: 'error.contrastText',
+                            },
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
 
-                        <CardContent>
-                          <Stack direction="row" alignItems="center" spacing={2}>
-                            <CheckCircle sx={{ color: 'success.main', fontSize: 40 }} />
-                            <Box>
-                              <Stack direction="row" alignItems="center" spacing={1}>
-                                <Typography variant="h6">
-                                  {path.topic || 'Learning Path'}
-                                </Typography>
-                                {hasDuplicate && (
-                                  <Tooltip title="Duplicate topic detected">
-                                    <DuplicateIcon color="warning" fontSize="small" />
-                                  </Tooltip>
-                                )}
-                              </Stack>
-                              <Typography variant="body2" color="text.secondary">
-                                Completed!
-                              </Typography>
-                            </Box>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  );
-                })}
+                      <CardContent>
+                        <Stack direction="row" alignItems="center" spacing={2}>
+                          <CheckCircle sx={{ color: 'success.main', fontSize: 40 }} />
+                          <Box>
+                            <Typography variant="h6">
+                              {path.topic || 'Learning Path'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Completed!
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
               </Grid>
             )}
           </Box>

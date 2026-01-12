@@ -39,7 +39,7 @@ class APIContentFetcher:
         self.perplexity_enabled = False
         if self.perplexity_api_key:
             self.perplexity_enabled = True
-            print("✅ Perplexity AI initialized for content analysis")
+            print("[OK] Perplexity AI initialized for content analysis")
         
         # Educational domains to prioritize
         self.educational_domains = [
@@ -56,7 +56,7 @@ class APIContentFetcher:
         Free tier: 10,000 units/day (100 searches)
         """
         if not self.youtube_api_key:
-            print("⚠️ YouTube API key not configured - skipping YouTube search")
+            print("[WARN] YouTube API key not configured - skipping YouTube search")
             return []
         
         try:
@@ -108,11 +108,11 @@ class APIContentFetcher:
                 
                 contents.append(content)
             
-            print(f"✅ Fetched {len(contents)} YouTube videos for '{query}'")
+            print(f"[OK] Fetched {len(contents)} YouTube videos for '{query}'")
             return contents
             
         except Exception as e:
-            print(f"❌ YouTube fetch error: {e}")
+            print(f"[ERROR] YouTube fetch error: {e}")
             return []
 
     def _get_youtube_duration(self, video_id: str) -> int:
@@ -214,11 +214,11 @@ class APIContentFetcher:
                 except Exception as e:
                     continue
             
-            print(f"✅ Fetched {len(contents)} Medium articles for '{query}'")
+            print(f"[OK] Fetched {len(contents)} Medium articles for '{query}'")
             return contents[:max_results]
             
         except Exception as e:
-            print(f"❌ Medium fetch error: {e}")
+            print(f"[ERROR] Medium fetch error: {e}")
             return []
 
     def fetch_github_content(self, query: str, max_results: int = 10) -> List[LearningContent]:
@@ -263,11 +263,11 @@ class APIContentFetcher:
                     
                     contents.append(content)
                 
-                print(f"✅ Fetched {len(contents)} GitHub resources for '{query}'")
+                print(f"[OK] Fetched {len(contents)} GitHub resources for '{query}'")
                 return contents
                 
         except Exception as e:
-            print(f"❌ GitHub fetch error: {e}")
+            print(f"[ERROR] GitHub fetch error: {e}")
             return []
 
     def fetch_coursera_content(self, query: str, max_results: int = 10) -> List[LearningContent]:
@@ -324,11 +324,11 @@ class APIContentFetcher:
                 # Sort by educational quality
                 contents.sort(key=lambda x: x.metadata.get('is_educational', False), reverse=True)
                 
-                print(f"✅ Fetched {len(contents)} web resources for '{query}'")
+                print(f"[OK] Fetched {len(contents)} web resources for '{query}'")
                 return contents[:max_results]
                 
         except Exception as e:
-            print(f"❌ DuckDuckGo fetch error: {e}")
+            print(f"[ERROR] DuckDuckGo fetch error: {e}")
             return []
 
     def _enhance_with_perplexity(self, content: LearningContent) -> LearningContent:
@@ -403,7 +403,7 @@ Return ONLY valid JSON with these exact keys."""
             
         except Exception as e:
             # Don't fail if Perplexity analysis fails - just use original content
-            print(f"⚠️ Perplexity analysis skipped: {e}")
+            print(f"[WARN] Perplexity analysis skipped: {e}")
         
         return content
 

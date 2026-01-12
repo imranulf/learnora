@@ -36,7 +36,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
-import { getLearningPaths, type LearningPath } from '../services/learningPath';
+import { getAllLearningPaths, type LearningPathResponse } from '../services/learningPath';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
 
 interface TabPanelProps {
@@ -62,7 +62,7 @@ export default function LearnPage() {
   const { session, loading: sessionLoading } = useSession();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
-  const [paths, setPaths] = useState<LearningPath[]>([]);
+  const [paths, setPaths] = useState<LearningPathResponse[]>([]);
   const [progress, setProgress] = useState<Record<string, PathProgress>>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +80,7 @@ export default function LearnPage() {
         setError(null);
 
         // Fetch learning paths
-        const pathsData = await getLearningPaths(session.access_token);
+        const pathsData = await getAllLearningPaths(session.access_token);
         setPaths(pathsData);
 
         // Fetch progress for each path
@@ -89,9 +89,9 @@ export default function LearnPage() {
           try {
             const pathProgress = await getPathProgress(
               session.access_token,
-              path.thread_id
+              path.conversation_thread_id
             );
-            progressMap[path.thread_id] = pathProgress;
+            progressMap[path.conversation_thread_id] = pathProgress;
           } catch {
             // Progress might not exist yet
           }
@@ -123,8 +123,8 @@ export default function LearnPage() {
     );
   }
 
-  const activePaths = paths.filter((p) => progress[p.thread_id]?.overall_progress !== 100);
-  const completedPaths = paths.filter((p) => progress[p.thread_id]?.overall_progress === 100);
+  const activePaths = paths.filter((p) => progress[p.conversation_thread_id]?.overall_progress !== 100);
+  const completedPaths = paths.filter((p) => progress[p.conversation_thread_id]?.overall_progress === 100);
 
   return (
     <Box>
@@ -248,11 +248,11 @@ export default function LearnPage() {
             ) : (
               <Grid container spacing={3}>
                 {activePaths.map((path) => {
-                  const pathProgress = progress[path.thread_id];
+                  const pathProgress = progress[path.conversation_thread_id];
                   const progressPercent = pathProgress?.overall_progress || 0;
 
                   return (
-                    <Grid size={{ xs: 12, md: 6 }} key={path.thread_id}>
+                    <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
                       <Card
                         sx={{
                           borderRadius: 3,
@@ -263,7 +263,7 @@ export default function LearnPage() {
                           },
                         }}
                       >
-                        <CardActionArea onClick={() => handleContinuePath(path.thread_id)}>
+                        <CardActionArea onClick={() => handleContinuePath(path.conversation_thread_id)}>
                           <CardContent>
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                               <Box sx={{ flex: 1 }}>
@@ -271,7 +271,7 @@ export default function LearnPage() {
                                   {path.topic || 'Learning Path'}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                  {path.goal || 'Personalized learning journey'}
+                                  Personalized learning journey
                                 </Typography>
                               </Box>
                               <Chip
@@ -347,7 +347,7 @@ export default function LearnPage() {
             ) : (
               <Grid container spacing={3}>
                 {completedPaths.map((path) => (
-                  <Grid size={{ xs: 12, md: 6 }} key={path.thread_id}>
+                  <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
                     <Card sx={{ borderRadius: 3, bgcolor: 'success.light' }}>
                       <CardContent>
                         <Stack direction="row" alignItems="center" spacing={2}>

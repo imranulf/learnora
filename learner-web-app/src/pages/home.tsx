@@ -40,7 +40,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
 import { getDashboardStats, type DashboardStats } from '../services/dashboard';
-import { getLearningPaths, type LearningPath } from '../services/learningPath';
+import { getAllLearningPaths, type LearningPathResponse } from '../services/learningPath';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
 
 export default function HomePage() {
@@ -49,7 +49,7 @@ export default function HomePage() {
   const userName = session?.user?.first_name || session?.user?.name || session?.user?.email?.split('@')[0] || 'Learner';
 
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [paths, setPaths] = useState<LearningPath[]>([]);
+  const [paths, setPaths] = useState<LearningPathResponse[]>([]);
   const [progress, setProgress] = useState<Record<string, PathProgress>>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ export default function HomePage() {
         // Fetch all data in parallel
         const [statsData, pathsData] = await Promise.all([
           getDashboardStats(session.access_token).catch(() => null),
-          getLearningPaths(session.access_token).catch(() => []),
+          getAllLearningPaths(session.access_token).catch(() => []),
         ]);
 
         setStats(statsData);
@@ -81,8 +81,8 @@ export default function HomePage() {
           const progressMap: Record<string, PathProgress> = {};
           for (const path of pathsData.slice(0, 3)) {
             try {
-              const pathProgress = await getPathProgress(session.access_token, path.thread_id);
-              progressMap[path.thread_id] = pathProgress;
+              const pathProgress = await getPathProgress(session.access_token, path.conversation_thread_id);
+              progressMap[path.conversation_thread_id] = pathProgress;
             } catch {
               // Progress might not exist yet
             }
@@ -102,7 +102,7 @@ export default function HomePage() {
 
   // Determine what to suggest next
   const getNextSuggestion = () => {
-    const activePaths = paths.filter((p) => progress[p.thread_id]?.overall_progress !== 100);
+    const activePaths = paths.filter((p) => progress[p.conversation_thread_id]?.overall_progress !== 100);
 
     if (paths.length === 0) {
       return {
@@ -116,12 +116,12 @@ export default function HomePage() {
 
     if (activePaths.length > 0) {
       const nextPath = activePaths[0];
-      const nextProgress = progress[nextPath.thread_id]?.overall_progress || 0;
+      const nextProgress = progress[nextPath.conversation_thread_id]?.overall_progress || 0;
       return {
         type: 'continue',
         title: `Continue: ${nextPath.topic || 'Learning Path'}`,
         description: `You're ${nextProgress.toFixed(0)}% through this path. Keep going!`,
-        action: () => navigate(`/learning-path?thread=${nextPath.thread_id}`),
+        action: () => navigate(`/learning-path?thread=${nextPath.conversation_thread_id}`),
         icon: <PlayArrow />,
       };
     }
@@ -374,12 +374,12 @@ export default function HomePage() {
             ) : (
               <Stack spacing={2}>
                 {paths.slice(0, 3).map((path) => {
-                  const pathProgress = progress[path.thread_id]?.overall_progress || 0;
+                  const pathProgress = progress[path.conversation_thread_id]?.overall_progress || 0;
                   const isCompleted = pathProgress === 100;
 
                   return (
                     <Card
-                      key={path.thread_id}
+                      key={path.conversation_thread_id}
                       variant="outlined"
                       sx={{
                         borderRadius: 2,
@@ -388,7 +388,7 @@ export default function HomePage() {
                       }}
                     >
                       <CardActionArea
-                        onClick={() => navigate(`/learning-path?thread=${path.thread_id}`)}
+                        onClick={() => navigate(`/learning-path?thread=${path.conversation_thread_id}`)}
                         sx={{ p: 2 }}
                       >
                         <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -397,7 +397,7 @@ export default function HomePage() {
                               {path.topic || 'Learning Path'}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {path.goal || 'Personalized learning journey'}
+                              Personalized learning journey
                             </Typography>
                           </Box>
                           <Stack direction="row" alignItems="center" spacing={2}>

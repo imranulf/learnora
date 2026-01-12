@@ -11,7 +11,7 @@ from typing import Optional, List, Dict
 import logging
 import json
 
-from langchain_core.language_models.chat_models import init_chat_model
+from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
 from sqlalchemy.ext.asyncio import AsyncSession
 

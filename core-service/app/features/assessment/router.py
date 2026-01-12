@@ -51,7 +51,7 @@ async def get_user_current_theta(db: AsyncSession, user_id, skill: str) -> float
             Assessment.skill_domain == skill,
             Assessment.theta_estimate.isnot(None)
         )
-        .order_by(Assessment.updated_at.desc())
+        .order_by(Assessment.created_at.desc())
         .limit(1)
     )
     assessment = result.scalar_one_or_none()
@@ -121,8 +121,8 @@ async def create_assessment_item(
     db_item = AssessmentItem(
         item_code=item.item_code,
         skill=item.skill,
-        discrimination=item.discrimination,
-        difficulty=item.difficulty,
+        discrimination=item.a,
+        difficulty=item.b,
         text=item.text,
         choices=item.choices,
         correct_index=item.correct_index,
@@ -131,7 +131,7 @@ async def create_assessment_item(
     db.add(db_item)
     await db.commit()
     await db.refresh(db_item)
-    return db_item
+    return ItemResponse.from_model(db_item)
 
 
 @router.get("/items", response_model=List[ItemResponse])
@@ -144,10 +144,10 @@ async def list_assessment_items(
     query = select(AssessmentItem).where(AssessmentItem.is_active == True)
     if skill:
         query = query.where(AssessmentItem.skill == skill)
-    
+
     result = await db.execute(query)
     items = result.scalars().all()
-    return items
+    return [ItemResponse.from_model(item) for item in items]
 
 
 # ----------------------------
@@ -648,7 +648,7 @@ async def get_quiz_items(
     )
     items = result.scalars().all()
 
-    return items
+    return [ItemResponse.from_model(item) for item in items]
 
 
 @router.post("/quizzes/{quiz_id}/submit", response_model=QuizResultResponse)
@@ -1166,6 +1166,7 @@ async def generate_and_save_mcq_questions(
 ):
     """
     Generate MCQ questions and save them to the assessment item bank.
+    If enough items already exist for this skill, returns existing items.
 
     Args:
         concept_name: The concept to generate questions for
@@ -1174,6 +1175,7 @@ async def generate_and_save_mcq_questions(
         question_count: Number of questions (1-20)
         concept_description: Optional context about the concept
     """
+    import uuid
     from app.features.assessment.mcq_generator import (
         get_mcq_agent,
         DifficultyLevel,
@@ -1189,6 +1191,24 @@ async def generate_and_save_mcq_questions(
             detail=f"Invalid difficulty. Must be one of: Beginner, Intermediate, Advanced"
         )
 
+    # Check if enough items already exist for this skill
+    result = await db.execute(
+        select(AssessmentItem)
+        .where(AssessmentItem.skill == skill, AssessmentItem.is_active == True)
+        .limit(question_count)
+    )
+    existing_items = result.scalars().all()
+
+    if len(existing_items) >= question_count:
+        # Return existing items
+        return {
+            "message": f"Using {len(existing_items)} existing MCQ items",
+            "concept_name": concept_name,
+            "skill": skill,
+            "difficulty": difficulty,
+            "item_codes": [item.item_code for item in existing_items[:question_count]]
+        }
+
     try:
         # Generate MCQs
         agent = get_mcq_agent()
@@ -1199,12 +1219,12 @@ async def generate_and_save_mcq_questions(
             concept_description=concept_description,
         )
 
-        # Convert to assessment items
+        # Convert to assessment items with unique codes using UUID
         items_data = mcq_to_assessment_items(
             questions=result.questions,
             skill=skill,
             difficulty_level=difficulty_level,
-            item_code_prefix=f"MCQ_{concept_name.replace(' ', '_')[:10]}"
+            item_code_prefix=f"MCQ_{skill[:20]}_{uuid.uuid4().hex[:8]}"
         )
 
         # Save to database

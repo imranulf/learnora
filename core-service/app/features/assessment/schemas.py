@@ -11,16 +11,14 @@ from datetime import datetime
 class ItemBase(BaseModel):
     """Base schema for assessment items."""
     skill: str = Field(..., min_length=1, max_length=100, description="Skill/knowledge component tag")
-    discrimination: float = Field(
+    a: float = Field(
         ...,
-        alias="a",
         gt=0.0,
         le=10.0,
         description="IRT discrimination parameter (must be > 0)"
     )
-    difficulty: float = Field(
+    b: float = Field(
         ...,
-        alias="b",
         ge=-5.0,
         le=5.0,
         description="IRT difficulty parameter (typically in [-5, 5])"
@@ -36,15 +34,34 @@ class ItemCreate(ItemBase):
     metadata: Optional[Dict[str, Any]] = None
 
 
-class ItemResponse(ItemBase):
+class ItemResponse(BaseModel):
     """Schema for item response."""
     id: int
     item_code: str
+    skill: str
+    a: float = Field(..., description="IRT discrimination parameter")
+    b: float = Field(..., description="IRT difficulty parameter")
+    text: str
+    choices: Optional[List[str]] = None
+    correct_index: Optional[int] = None
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    @classmethod
+    def from_model(cls, item) -> "ItemResponse":
+        """Create ItemResponse from AssessmentItem model."""
+        return cls(
+            id=item.id,
+            item_code=item.item_code,
+            skill=item.skill,
+            a=item.discrimination,
+            b=item.difficulty,
+            text=item.text,
+            choices=item.choices,
+            correct_index=item.correct_index,
+            is_active=item.is_active,
+            created_at=item.created_at,
+        )
 
 
 # --- Assessment Schemas ---
@@ -201,9 +218,11 @@ class QuizCreate(BaseModel):
 class QuizResponse(BaseModel):
     """Schema for quiz response."""
     id: int
+    user_id: int
     title: str
     skill: str
     difficulty: str
+    items: List[int]
     total_items: int
     is_adaptive: bool
     status: str
@@ -216,8 +235,7 @@ class QuizResponse(BaseModel):
 
 class QuizSubmit(BaseModel):
     """Schema for quiz submission."""
-    quiz_id: int
-    responses: List[Dict[str, Any]]
+    responses: List[Dict[str, Any]]  # quiz_id comes from URL path
 
 
 class QuizResultResponse(BaseModel):

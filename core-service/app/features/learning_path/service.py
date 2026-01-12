@@ -202,7 +202,38 @@ class LearningPathService:
                 detail="An error occurred while starting the learning path. Please try again."
             )
 
-        message_threads = result.get("messages", {})
+        message_threads = result.get("messages", [])
+
+        # Debug logging to trace the issue
+        logger.info(f"Graph result keys: {result.keys() if result else 'None'}")
+        logger.info(f"Number of messages: {len(message_threads) if message_threads else 0}")
+
+        # Extract and store concepts from the generated learning path
+        user_id_str = str(user_id)
+        if message_threads and len(message_threads) > 0:
+            last_message = message_threads[-1]
+            logger.info(f"Last message type: {type(last_message).__name__}")
+            if isinstance(last_message, AIMessage):
+                logger.info(f"Last AI message content (first 500 chars): {last_message.content[:500] if last_message.content else 'Empty'}")
+                learning_path_json = extract_json_array_from_message(last_message.content)
+                logger.info(f"Extracted JSON: {learning_path_json}")
+                if learning_path_json:
+                    await asyncio.to_thread(
+                        parse_and_store_concepts,
+                        user_id_str,
+                        conversation_thread_id,
+                        topic,
+                        learning_path_json,
+                        self.concept_service,
+                        self.create_learning_path_kg
+                    )
+                    logger.info(f"Extracted and stored {len(learning_path_json)} concepts for thread {conversation_thread_id}")
+                else:
+                    logger.warning(f"No concepts extracted from learning path for thread {conversation_thread_id}")
+            else:
+                logger.warning(f"Last message is not an AIMessage, it's: {type(last_message).__name__}")
+        else:
+            logger.warning(f"No messages in result for thread {conversation_thread_id}")
 
         logger.info(f"Started learning path with conversation_thread_id: {conversation_thread_id} for user {user_id}")
 

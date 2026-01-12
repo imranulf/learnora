@@ -117,12 +117,13 @@ async def delete_learning_path(
     if db_learning_path.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to delete this learning path")
 
-    # Delete associated progress records first
+    # Delete associated progress records first (must commit before deleting learning path due to FK constraint)
     from app.features.learning_path.progress_models import LearningPathProgress
     from sqlalchemy import delete
     await db.execute(
         delete(LearningPathProgress).where(LearningPathProgress.thread_id == thread_id)
     )
+    await db.commit()
 
     # Delete the learning path
     success = await crud.delete_learning_path(db, thread_id)

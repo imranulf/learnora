@@ -93,7 +93,7 @@ async def list_learning_paths(
 
 @router.post("/", response_model=LearningPathResponse)
 async def create_learning_path(
-    request: LearningPathCreate, 
+    request: LearningPathCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -101,3 +101,32 @@ async def create_learning_path(
     # Override user_id with authenticated user
     request.user_id = current_user.id
     return await crud.create_learning_path(db, request)
+
+
+@router.delete("/{thread_id}")
+async def delete_learning_path(
+    thread_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a learning path (requires authentication and ownership)"""
+    # Verify ownership first
+    db_learning_path = await crud.get_learning_path_by_thread_id(db, thread_id)
+    if not db_learning_path:
+        raise HTTPException(status_code=404, detail="Learning path not found")
+    if db_learning_path.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this learning path")
+
+    # Delete associated progress records first
+    from app.features.learning_path.progress_models import LearningPathProgress
+    from sqlalchemy import delete
+    await db.execute(
+        delete(LearningPathProgress).where(LearningPathProgress.thread_id == thread_id)
+    )
+
+    # Delete the learning path
+    success = await crud.delete_learning_path(db, thread_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to delete learning path")
+
+    return {"message": "Learning path deleted successfully"}

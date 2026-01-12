@@ -74,3 +74,19 @@ async def delete_learning_path(db: AsyncSession, conversation_thread_id: str) ->
         await db.commit()
         return True
     return False
+
+
+async def get_user_learning_path_by_topic(
+    db: AsyncSession,
+    user_id: int,
+    topic: str
+) -> Optional[LearningPath]:
+    """Check if user already has a learning path with similar topic (case-insensitive)"""
+    from sqlalchemy import func
+    result = await db.execute(
+        select(LearningPath).where(
+            LearningPath.user_id == user_id,
+            func.lower(LearningPath.topic) == topic.lower().strip()
+        )
+    )
+    return result.scalar_one_or_none()

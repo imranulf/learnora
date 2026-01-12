@@ -12,6 +12,8 @@ import {
   Add as AddIcon,
   AutoStories,
   CheckCircle,
+  ContentCopy as DuplicateIcon,
+  Delete as DeleteIcon,
   PlayArrow,
   Timeline,
   TrendingUp,
@@ -25,18 +27,25 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Grid,
+  IconButton,
   LinearProgress,
   Paper,
   Stack,
   Tab,
   Tabs,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
-import { getAllLearningPaths, type LearningPathResponse } from '../services/learningPath';
+import { deleteLearningPath, getAllLearningPaths, type LearningPathResponse } from '../services/learningPath';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
 
 interface TabPanelProps {
@@ -66,6 +75,25 @@ export default function LearnPage() {
   const [progress, setProgress] = useState<Record<string, PathProgress>>({});
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [pathToDelete, setPathToDelete] = useState<LearningPathResponse | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Detect duplicate topics
+  const getDuplicateTopics = () => {
+    const topicCounts: Record<string, number> = {};
+    paths.forEach((path) => {
+      const topic = (path.topic || '').toLowerCase().trim();
+      topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+    });
+    return new Set(
+      Object.entries(topicCounts)
+        .filter(([, count]) => count > 1)
+        .map(([topic]) => topic)
+    );
+  };
+
+  const duplicateTopics = getDuplicateTopics();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -113,6 +141,38 @@ export default function LearnPage() {
 
   const handleContinuePath = (threadId: string) => {
     navigate(`/learning-path?thread=${threadId}`);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, path: LearningPathResponse) => {
+    e.stopPropagation(); // Prevent card click
+    setPathToDelete(path);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pathToDelete || !session?.access_token) return;
+
+    setDeleting(true);
+    try {
+      await deleteLearningPath(pathToDelete.conversation_thread_id, session.access_token);
+      // Remove from local state
+      setPaths((prev) => prev.filter((p) => p.conversation_thread_id !== pathToDelete.conversation_thread_id));
+      setDeleteDialogOpen(false);
+      setPathToDelete(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete learning path');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setPathToDelete(null);
+  };
+
+  const isDuplicate = (topic: string) => {
+    return duplicateTopics.has((topic || '').toLowerCase().trim());
   };
 
   if (sessionLoading || dataLoading) {
@@ -250,6 +310,7 @@ export default function LearnPage() {
                 {activePaths.map((path) => {
                   const pathProgress = progress[path.conversation_thread_id];
                   const progressPercent = pathProgress?.overall_progress || 0;
+                  const hasDuplicate = isDuplicate(path.topic || '');
 
                   return (
                     <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
@@ -257,19 +318,50 @@ export default function LearnPage() {
                         sx={{
                           borderRadius: 3,
                           transition: 'transform 0.2s, box-shadow 0.2s',
+                          position: 'relative',
+                          border: hasDuplicate ? '2px solid' : undefined,
+                          borderColor: hasDuplicate ? 'warning.main' : undefined,
                           '&:hover': {
                             transform: 'translateY(-4px)',
                             boxShadow: 4,
                           },
                         }}
                       >
+                        {/* Delete Button */}
+                        <Tooltip title="Delete learning path">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleDeleteClick(e, path)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              zIndex: 1,
+                              bgcolor: 'background.paper',
+                              '&:hover': {
+                                bgcolor: 'error.light',
+                                color: 'error.contrastText',
+                              },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
                         <CardActionArea onClick={() => handleContinuePath(path.conversation_thread_id)}>
                           <CardContent>
                             <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="h6" gutterBottom>
-                                  {path.topic || 'Learning Path'}
-                                </Typography>
+                              <Box sx={{ flex: 1, pr: 4 }}>
+                                <Stack direction="row" alignItems="center" spacing={1}>
+                                  <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                                    {path.topic || 'Learning Path'}
+                                  </Typography>
+                                  {hasDuplicate && (
+                                    <Tooltip title="Duplicate topic detected">
+                                      <DuplicateIcon color="warning" fontSize="small" />
+                                    </Tooltip>
+                                  )}
+                                </Stack>
                                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                                   Personalized learning journey
                                 </Typography>
@@ -346,30 +438,93 @@ export default function LearnPage() {
               </Box>
             ) : (
               <Grid container spacing={3}>
-                {completedPaths.map((path) => (
-                  <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
-                    <Card sx={{ borderRadius: 3, bgcolor: 'success.light' }}>
-                      <CardContent>
-                        <Stack direction="row" alignItems="center" spacing={2}>
-                          <CheckCircle sx={{ color: 'success.main', fontSize: 40 }} />
-                          <Box>
-                            <Typography variant="h6">
-                              {path.topic || 'Learning Path'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Completed!
-                            </Typography>
-                          </Box>
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
+                {completedPaths.map((path) => {
+                  const hasDuplicate = isDuplicate(path.topic || '');
+                  return (
+                    <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
+                      <Card
+                        sx={{
+                          borderRadius: 3,
+                          bgcolor: 'success.light',
+                          position: 'relative',
+                          border: hasDuplicate ? '2px solid' : undefined,
+                          borderColor: hasDuplicate ? 'warning.main' : undefined,
+                        }}
+                      >
+                        {/* Delete Button */}
+                        <Tooltip title="Delete learning path">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleDeleteClick(e, path)}
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 8,
+                              zIndex: 1,
+                              bgcolor: 'background.paper',
+                              '&:hover': {
+                                bgcolor: 'error.light',
+                                color: 'error.contrastText',
+                              },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
+                        <CardContent>
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <CheckCircle sx={{ color: 'success.main', fontSize: 40 }} />
+                            <Box>
+                              <Stack direction="row" alignItems="center" spacing={1}>
+                                <Typography variant="h6">
+                                  {path.topic || 'Learning Path'}
+                                </Typography>
+                                {hasDuplicate && (
+                                  <Tooltip title="Duplicate topic detected">
+                                    <DuplicateIcon color="warning" fontSize="small" />
+                                  </Tooltip>
+                                )}
+                              </Stack>
+                              <Typography variant="body2" color="text.secondary">
+                                Completed!
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
               </Grid>
             )}
           </Box>
         </TabPanel>
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>Delete Learning Path?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "<strong>{pathToDelete?.topic || 'this learning path'}</strong>"?
+            This action cannot be undone and all progress will be lost.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

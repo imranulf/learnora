@@ -88,6 +88,17 @@ export async function getLearningPathKG(threadId: string, token: string): Promis
     return response.json();
 }
 
+export interface DuplicateTopicError {
+    error: 'duplicate_topic';
+    message: string;
+    existing_thread_id: string;
+}
+
+export interface ApiError {
+    status: number;
+    detail: DuplicateTopicError | string;
+}
+
 /**
  * Start a new learning path
  */
@@ -102,9 +113,39 @@ export async function startLearningPath(topic: string, token: string): Promise<G
             },
             body: JSON.stringify({ learning_topic: topic }),
         }
-    ); if (!response.ok) {
+    );
+
+    if (!response.ok) {
+        // Handle 409 Conflict (duplicate topic)
+        if (response.status === 409) {
+            const errorData = await response.json();
+            const error = new Error(errorData.detail?.message || 'Duplicate topic') as Error & { apiError: ApiError };
+            error.apiError = {
+                status: 409,
+                detail: errorData.detail,
+            };
+            throw error;
+        }
         throw new Error(`Failed to start learning path: ${response.statusText}`);
     }
 
     return response.json();
+}
+
+/**
+ * Delete a learning path
+ */
+export async function deleteLearningPath(threadId: string, token: string): Promise<void> {
+    const response = await fetch(
+        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/${threadId}`,
+        {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        }
+    );
+    if (!response.ok) {
+        throw new Error(`Failed to delete learning path: ${response.statusText}`);
+    }
 }

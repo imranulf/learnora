@@ -170,6 +170,18 @@ class LearningPathService:
             topic: Learning topic
             user_id: User ID (integer from authenticated user)
         """
+        # Check if user already has a learning path with this topic
+        existing_path = await crud.get_user_learning_path_by_topic(db, user_id, topic)
+        if existing_path:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "duplicate_topic",
+                    "message": f"You already have a learning path for '{existing_path.topic}'",
+                    "existing_thread_id": existing_path.conversation_thread_id
+                }
+            )
+
         # Generate unique thread ID for the conversation
         conversation_thread_id = str(uuid4())
         config = {"configurable": {"thread_id": conversation_thread_id}}

@@ -2,6 +2,7 @@ import {
     AutoGraph as AutoGraphIcon,
     Close as CloseIcon,
     School as SchoolIcon,
+    Warning as WarningIcon,
 } from '@mui/icons-material';
 import {
     Alert,
@@ -21,6 +22,11 @@ import { useNavigate } from 'react-router';
 import { useSession } from '../../hooks/useSession';
 import { startLearningPath } from '../../services/learningPath';
 
+interface DuplicateInfo {
+    existingThreadId: string;
+    existingTopic: string;
+}
+
 interface LearningPathCreationWizardProps {
     open: boolean;
     onClose: () => void;
@@ -39,6 +45,7 @@ export default function LearningPathCreationWizard({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [duplicateInfo, setDuplicateInfo] = useState<DuplicateInfo | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,6 +79,18 @@ export default function LearningPathCreationWizard({
             }, 1500);
         } catch (err) {
             console.error('Failed to create learning path:', err);
+
+            // Check if this is a duplicate topic error (409)
+            const apiError = (err as { apiError?: { status: number; detail: { error: string; existing_thread_id: string } } }).apiError;
+            if (apiError?.status === 409 && apiError.detail?.error === 'duplicate_topic') {
+                setDuplicateInfo({
+                    existingThreadId: apiError.detail.existing_thread_id,
+                    existingTopic: topic.trim(),
+                });
+                setError(null);
+                return;
+            }
+
             setError(err instanceof Error ? err.message : 'Failed to create learning path');
         } finally {
             setLoading(false);
@@ -83,7 +102,15 @@ export default function LearningPathCreationWizard({
             setTopic('');
             setError(null);
             setSuccess(false);
+            setDuplicateInfo(null);
             onClose();
+        }
+    };
+
+    const handleGoToExisting = () => {
+        if (duplicateInfo) {
+            handleClose();
+            navigate(`/learning-path?thread=${duplicateInfo.existingThreadId}`);
         }
     };
 
@@ -127,6 +154,43 @@ export default function LearningPathCreationWizard({
                         <Typography color="text.secondary">
                             Your AI-powered learning path is being generated...
                         </Typography>
+                    </Box>
+                ) : duplicateInfo ? (
+                    <Box
+                        component={motion.div}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        sx={{ textAlign: 'center', py: 4 }}
+                    >
+                        <WarningIcon sx={{ fontSize: 80, color: 'warning.main', mb: 2 }} />
+                        <Typography variant="h5" fontWeight="bold" gutterBottom color="warning.main">
+                            Learning Path Already Exists
+                        </Typography>
+                        <Typography color="text.secondary" sx={{ mb: 3 }}>
+                            You already have a learning path for "{duplicateInfo.existingTopic}".
+                            Would you like to continue with your existing path?
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                            <Button
+                                variant="outlined"
+                                onClick={() => setDuplicateInfo(null)}
+                            >
+                                Try Different Topic
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={handleGoToExisting}
+                                startIcon={<AutoGraphIcon />}
+                                sx={{
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, #5568d3 0%, #65408b 100%)',
+                                    },
+                                }}
+                            >
+                                Go to Existing Path
+                            </Button>
+                        </Box>
                     </Box>
                 ) : (
                     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>

@@ -202,16 +202,26 @@ export default function QuizPlayer({
       ? (answers.size / items.length) * 100
       : (itemsAnswered / quiz.total_items) * 100;
 
+  // Format skill name: convert snake_case to Title Case
+  const formatSkillName = (skill: string) => {
+    return skill
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Format difficulty: capitalize first letter
+  const formatDifficulty = (difficulty: string) => {
+    return difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase();
+  };
+
   return (
-    <Paper sx={{ p: 3 }}>
+    <Box>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          {quiz.title}
-        </Typography>
         <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-          <Chip label={quiz.skill} size="small" />
-          <Chip label={quiz.difficulty} size="small" variant="outlined" />
+          <Chip label={formatSkillName(quiz.skill)} size="small" />
+          <Chip label={formatDifficulty(quiz.difficulty)} size="small" variant="outlined" />
           {quiz.is_adaptive && (
             <Chip label="Adaptive" size="small" color="primary" />
           )}
@@ -351,6 +361,6 @@ export default function QuizPlayer({
           </Box>
         </Box>
       )}
-    </Paper>
+    </Box>
   );
 }

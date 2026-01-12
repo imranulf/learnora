@@ -10,7 +10,7 @@ The enhanced workflow follows Learnora-Mahee's sophisticated approach:
 - Step 3: Concept Graph Generation (prerequisite relationships)
 """
 
-from langchain_core.language_models.chat_models import init_chat_model
+from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, END, MessagesState, StateGraph
@@ -66,40 +66,64 @@ MAX_FOLLOW_UPS = 2
 # ============================================================
 
 def assess_knowledge(state: LearningPathState) -> LearningPathState:
-    """Assess user's current knowledge level."""
+    """Initialize the learning path with the topic.
+
+    Note: In single-call mode (no interrupts), this node just sets up the topic
+    and passes through to generation. The assessment conversation is skipped.
+    """
     topic = state.get("topic")
 
     if topic is None:
         responed_topic = interrupt("Please provide a topic you want to learn about.")
         topic = responed_topic
 
-    state["topic"] = topic
-    prompt = assessment_prompt.invoke(state)
+    logger.info(f"Starting learning path generation for topic: {topic}")
 
-    try:
-        response = model.invoke(prompt)
-    except TimeoutError as e:
-        logger.error(f"LLM timeout during knowledge assessment for topic '{topic}': {e}")
-        error_response = AIMessage(
-            content="I apologize, but the request timed out. Please try again."
-        )
-        return {"messages": [error_response], "topic": topic}
-    except Exception as e:
-        logger.error(f"LLM error during knowledge assessment for topic '{topic}': {e}")
-        error_response = AIMessage(
-            content="I encountered an error while processing your request. Please try again later."
-        )
-        return {"messages": [error_response], "topic": topic}
-
-    return {"messages": [response], "topic": topic}
+    # In single-call mode, we skip the assessment conversation
+    # and just set up the topic for the generation phase
+    return {"topic": topic}
 
 
 def generate_learning_path(state: LearningPathState) -> LearningPathState:
-    """Generate learning path based on assessment."""
-    prompt = generation_prompt.invoke(state)
+    """Generate learning path based on the topic.
+
+    Creates a concept prerequisite graph directly from the topic,
+    suitable for single-call operation without assessment conversation.
+    """
+    topic = state.get("topic", "")
+    logger.info(f"Generating learning path for topic: {topic}")
+
+    # Use a direct prompt for topic-based generation
+    direct_prompt = f"""You are an expert curriculum designer creating a learning path.
+
+Topic: {topic}
+
+Create a JSON array of 8-15 learning concepts with their prerequisites.
+
+REQUIREMENTS:
+1. Each concept should be a specific, learnable unit
+2. Prerequisites should form a logical learning sequence
+3. Foundational concepts have empty prerequisite arrays
+4. Advanced concepts build on earlier ones
+5. Order concepts from foundational to advanced
+
+OUTPUT FORMAT (strict JSON array):
+[
+  {{"concept": "ConceptName1", "prerequisites": []}},
+  {{"concept": "ConceptName2", "prerequisites": ["ConceptName1"]}},
+  {{"concept": "ConceptName3", "prerequisites": ["ConceptName1", "ConceptName2"]}}
+]
+
+RULES:
+- Use clear, descriptive concept names (2-4 words each)
+- Each concept should take 1-3 hours to learn
+- Ensure no circular dependencies
+- Every advanced concept should have at least one prerequisite
+- Return ONLY the JSON array, no additional text or markdown formatting"""
 
     try:
-        response = model.invoke(prompt)
+        response = model.invoke(direct_prompt)
+        logger.info(f"LLM response received, length: {len(response.content) if response.content else 0}")
     except TimeoutError as e:
         logger.error(f"LLM timeout during learning path generation: {e}")
         error_response = AIMessage(
@@ -125,7 +149,8 @@ builder.add_edge("assess_knowledge", "generate_learning_path")
 builder.add_edge("generate_learning_path", END)
 
 memory = MemorySaver()
-graph = builder.compile(checkpointer=memory, interrupt_before=["generate_learning_path"])
+# Compile without interrupt to generate full learning path in one call
+graph = builder.compile(checkpointer=memory)
 
 
 # ============================================================

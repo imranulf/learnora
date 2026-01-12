@@ -128,12 +128,13 @@ async def update_concept_progress(
         )
         
         return {
-            "concept_name": progress.concept_name,
+            "name": progress.concept_name,
             "mastery_level": progress.mastery_level,
             "status": progress.status,
-            "total_time_spent": progress.total_time_spent,
+            "time_spent": progress.total_time_spent,
             "content_count": progress.content_count,
-            "last_interaction_at": progress.last_interaction_at.isoformat() if progress.last_interaction_at else None
+            "started_at": progress.started_at.isoformat() if progress.started_at else None,
+            "completed_at": progress.completed_at.isoformat() if progress.completed_at else None
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update progress: {str(e)}")

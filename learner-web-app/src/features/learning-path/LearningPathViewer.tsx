@@ -40,15 +40,45 @@ import {
 import { getPathProgress, type PathProgress } from '../../services/learningPathProgress';
 import LearningPathCreationWizard from './LearningPathCreationWizard';
 import LearningPathProgress from './LearningPathProgress';
+import ConceptQuizDialog from './ConceptQuizDialog';
 
 
 const MASTERY_COLORS = {
-    not_started: '#E0E0E0',
-    beginner: '#FFB74D',
-    intermediate: '#64B5F6',
-    advanced: '#81C784',
-    mastered: '#4CAF50',
+    not_started: {
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+        border: '#667eea',
+        text: '#374151',
+    },
+    beginner: {
+        background: 'linear-gradient(135deg, #fff6e5 0%, #ffe4b8 100%)',
+        border: '#f59e0b',
+        text: '#92400e',
+    },
+    intermediate: {
+        background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
+        border: '#0ea5e9',
+        text: '#075985',
+    },
+    advanced: {
+        background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+        border: '#22c55e',
+        text: '#166534',
+    },
+    mastered: {
+        background: 'linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%)',
+        border: '#10b981',
+        text: '#065f46',
+    },
 };
+
+const NODE_COLORS = [
+    { bg: '#667eea', border: '#5a67d8', highlight: '#7c3aed' },
+    { bg: '#f093fb', border: '#ec4899', highlight: '#f472b6' },
+    { bg: '#4facfe', border: '#2563eb', highlight: '#3b82f6' },
+    { bg: '#43e97b', border: '#22c55e', highlight: '#4ade80' },
+    { bg: '#fa709a', border: '#e11d48', highlight: '#fb7185' },
+    { bg: '#fee140', border: '#eab308', highlight: '#facc15' },
+];
 
 type LayoutDirection = 'horizontal' | 'vertical';
 type NodeColor = keyof typeof MASTERY_COLORS;
@@ -59,6 +89,14 @@ interface DetailPanelData {
     prerequisites: string[];
     mastery: NodeColor;
 }
+
+// Helper to format snake_case to Title Case
+const formatConceptName = (name: string): string => {
+    return name
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+};
 
 export default function LearningPathViewer() {
     const { session } = useSession();
@@ -76,6 +114,7 @@ export default function LearningPathViewer() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [wizardOpen, setWizardOpen] = useState(false);
+    const [quizDialogOpen, setQuizDialogOpen] = useState(false);
 
     const loadGraphData = useCallback(async (threadId: string) => {
         if (!session?.access_token) {
@@ -140,27 +179,45 @@ export default function LearningPathViewer() {
         if (!graphData || !networkContainer.current) return;
 
         const nodes = new DataSet(
-            graphData.concepts.map((concept: ConceptInfo) => ({
-                id: concept.id,
-                label: concept.label,
-                color: {
-                    background: MASTERY_COLORS.not_started,
-                    border: '#0056D2',
-                    highlight: {
-                        background: '#0056D2',
-                        border: '#003d99',
+            graphData.concepts.map((concept: ConceptInfo, index: number) => {
+                const colorScheme = NODE_COLORS[index % NODE_COLORS.length];
+                return {
+                    id: concept.id,
+                    label: concept.label,
+                    color: {
+                        background: colorScheme.bg,
+                        border: colorScheme.border,
+                        highlight: {
+                            background: colorScheme.highlight,
+                            border: colorScheme.border,
+                        },
+                        hover: {
+                            background: colorScheme.highlight,
+                            border: colorScheme.border,
+                        },
                     },
-                },
-                shape: 'box',
-                font: {
-                    size: 14,
-                    color: theme.palette.text.primary,
-                    face: 'Arial',
-                },
-                margin: { top: 10, right: 10, bottom: 10, left: 10 },
-                borderWidth: 2,
-                borderWidthSelected: 3,
-            }))
+                    shape: 'box',
+                    font: {
+                        size: 14,
+                        color: '#ffffff',
+                        face: 'Inter, system-ui, sans-serif',
+                        bold: true,
+                    },
+                    margin: { top: 15, right: 20, bottom: 15, left: 20 },
+                    borderWidth: 3,
+                    borderWidthSelected: 4,
+                    shadow: {
+                        enabled: true,
+                        color: 'rgba(0,0,0,0.2)',
+                        size: 10,
+                        x: 3,
+                        y: 3,
+                    },
+                    shapeProperties: {
+                        borderRadius: 12,
+                    },
+                };
+            })
         );
 
         const edgesList = graphData.concepts.flatMap((concept: ConceptInfo) =>
@@ -168,16 +225,27 @@ export default function LearningPathViewer() {
                 id: `${prereq}-${concept.id}`,
                 from: prereq,
                 to: concept.id,
-                arrows: 'to',
+                arrows: {
+                    to: {
+                        enabled: true,
+                        scaleFactor: 0.8,
+                        type: 'arrow',
+                    },
+                },
                 color: {
-                    color: theme.palette.text.secondary,
-                    highlight: '#0056D2',
+                    color: '#94a3b8',
+                    highlight: '#667eea',
+                    hover: '#667eea',
                 },
                 width: 2,
                 smooth: {
+                    enabled: true,
                     type: 'cubicBezier',
                     forceDirection: layoutDirection === 'horizontal' ? 'horizontal' : 'vertical',
+                    roundness: 0.5,
                 },
+                hoverWidth: 3,
+                selectionWidth: 3,
             }))
         );
 
@@ -190,8 +258,12 @@ export default function LearningPathViewer() {
                     enabled: true,
                     direction: layoutDirection === 'horizontal' ? 'LR' : 'UD',
                     sortMethod: 'directed',
-                    nodeSpacing: 150,
-                    levelSeparation: 200,
+                    nodeSpacing: 220,
+                    levelSeparation: 280,
+                    treeSpacing: 200,
+                    blockShifting: true,
+                    edgeMinimization: true,
+                    parentCentralization: true,
                 },
             },
             physics: {
@@ -203,6 +275,8 @@ export default function LearningPathViewer() {
                 zoomView: true,
                 navigationButtons: true,
                 keyboard: true,
+                hover: true,
+                tooltipDelay: 200,
             },
             nodes: {
                 shape: 'box',
@@ -211,7 +285,7 @@ export default function LearningPathViewer() {
                 arrows: {
                     to: {
                         enabled: true,
-                        scaleFactor: 1,
+                        scaleFactor: 0.8,
                     },
                 },
             },
@@ -559,8 +633,10 @@ export default function LearningPathViewer() {
                                 <Chip
                                     label={selectedNode.mastery.replace('_', ' ')}
                                     sx={{
-                                        bgcolor: MASTERY_COLORS[selectedNode.mastery],
+                                        bgcolor: MASTERY_COLORS[selectedNode.mastery].border,
+                                        color: '#fff',
                                         textTransform: 'capitalize',
+                                        fontWeight: 600,
                                     }}
                                 />
                             </Box>
@@ -582,7 +658,7 @@ export default function LearningPathViewer() {
                                                     borderColor: 'divider',
                                                 }}
                                             >
-                                                <ListItemText primary={prereq} primaryTypographyProps={{ variant: 'body2' }} />
+                                                <ListItemText primary={formatConceptName(prereq)} primaryTypographyProps={{ variant: 'body2' }} />
                                             </ListItem>
                                         ))}
                                     </List>
@@ -611,7 +687,7 @@ export default function LearningPathViewer() {
                                 <Button
                                     variant="outlined"
                                     fullWidth
-                                    onClick={() => navigate('/assessment')}
+                                    onClick={() => setQuizDialogOpen(true)}
                                 >
                                     Take Assessment
                                 </Button>
@@ -623,13 +699,13 @@ export default function LearningPathViewer() {
 
             {/* Footer - Mastery Legend */}
             <Box sx={{ bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider', px: 3, py: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
                     <Typography variant="body2" fontWeight="semibold">
                         Mastery Levels:
                     </Typography>
-                    {Object.entries(MASTERY_COLORS).map(([level, color]) => (
+                    {Object.entries(MASTERY_COLORS).map(([level, colors]) => (
                         <Box key={level} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: color }} />
+                            <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: colors.border, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                             <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
                                 {level.replace('_', ' ')}
                             </Typography>
@@ -646,6 +722,17 @@ export default function LearningPathViewer() {
                     fetchLearningPaths();
                 }}
             />
+
+            {/* Concept Quiz Dialog */}
+            {selectedNode && (
+                <ConceptQuizDialog
+                    open={quizDialogOpen}
+                    onClose={() => setQuizDialogOpen(false)}
+                    conceptName={selectedNode.label}
+                    conceptId={selectedNode.id}
+                    learningPathThreadId={selectedPathId}
+                />
+            )}
         </Box>
     );
 }

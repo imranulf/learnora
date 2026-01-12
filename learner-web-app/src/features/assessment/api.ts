@@ -46,7 +46,21 @@ async function fetchAPI<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || error.detail || `HTTP ${response.status}`);
+    // Handle different error formats
+    let errorMessage = `HTTP ${response.status}`;
+    if (error.error) {
+      errorMessage = error.error;
+    } else if (error.detail) {
+      // FastAPI validation errors come as array in detail
+      if (Array.isArray(error.detail)) {
+        errorMessage = error.detail.map((e: { msg?: string }) => e.msg || JSON.stringify(e)).join(', ');
+      } else {
+        errorMessage = error.detail;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();

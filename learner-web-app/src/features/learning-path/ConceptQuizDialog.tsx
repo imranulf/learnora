@@ -187,7 +187,7 @@ export default function ConceptQuizDialog({
                             </Stack>
                         </Box>
 
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50', borderRadius: 2 }}>
+                        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                             <Typography variant="body2" color="text.secondary">
                                 This quiz will generate 5 multiple-choice questions about{' '}
                                 <strong>{conceptName}</strong> at the <strong>{difficulty}</strong> level.

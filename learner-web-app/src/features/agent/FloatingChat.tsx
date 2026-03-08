@@ -79,6 +79,7 @@ export function FloatingChat() {
             height: { xs: 'calc(100vh - 200px)', sm: 560 },
             maxHeight: 'calc(100vh - 140px)',
             borderRadius: 3,
+            backgroundImage: 'none',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',

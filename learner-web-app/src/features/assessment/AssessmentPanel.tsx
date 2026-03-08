@@ -102,7 +102,7 @@ export default function AssessmentPanel({
       )}
 
       {assessmentResult && (
-        <Paper elevation={2} sx={{ p: 3, mb: 3, bgcolor: 'primary.50' }}>
+        <Paper variant="outlined" sx={{ p: 3, mb: 3, borderColor: 'primary.main' }}>
           <Stack spacing={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CheckCircle color="success" />

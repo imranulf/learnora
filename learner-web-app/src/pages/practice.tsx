@@ -214,8 +214,8 @@ export default function PracticePage() {
             sx={{
               p: 3,
               background: 'linear-gradient(135deg, rgba(240,147,251,0.85) 0%, rgba(245,87,108,0.85) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
               color: 'white',
               borderRadius: 3,
               border: '1px solid rgba(255,255,255,0.2)',
@@ -233,8 +233,8 @@ export default function PracticePage() {
             sx={{
               p: 3,
               background: 'linear-gradient(135deg, rgba(79,172,254,0.85) 0%, rgba(0,242,254,0.85) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
               color: 'white',
               borderRadius: 3,
               border: '1px solid rgba(255,255,255,0.2)',
@@ -251,10 +251,10 @@ export default function PracticePage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, rgba(255,236,210,0.85) 0%, rgba(252,182,159,0.85) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              color: '#333',
+              background: 'linear-gradient(135deg, rgba(245,124,0,0.85) 0%, rgba(230,81,0,0.85) 100%)',
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+              color: 'white',
               borderRadius: 3,
               border: '1px solid rgba(255,255,255,0.2)',
             }}
@@ -269,7 +269,7 @@ export default function PracticePage() {
       </Grid>
 
       {/* Quick Quiz Section */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 3, ...glassSx }}>
+      <Paper sx={[glassSx, { p: 3, mb: 4, borderRadius: 3 }]}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
           <PlayArrow color="primary" />
           <Typography variant="h6">Quick Practice</Typography>
@@ -281,10 +281,7 @@ export default function PracticePage() {
           {QUICK_QUIZ_SKILLS.map((item) => (
             <Grid size={{ xs: 6, sm: 3 }} key={item.skill}>
               <Card
-                sx={{
-                  ...glassCardSx(`${item.color}20`),
-                  borderRadius: 2,
-                }}
+                sx={[glassCardSx(`${item.color}20`), { borderRadius: 2 }]}
               >
                 <CardActionArea
                   onClick={() => handleQuickQuiz(item.skill)}
@@ -308,7 +305,7 @@ export default function PracticePage() {
       </Paper>
 
       {/* Tabs for Assessments and Quiz History */}
-      <Paper sx={{ borderRadius: 3, ...glassSx }}>
+      <Paper sx={[glassSx, { borderRadius: 3 }]}>
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}

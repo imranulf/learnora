@@ -186,8 +186,8 @@ export default function LearnPage() {
             sx={{
               p: 3,
               background: 'linear-gradient(135deg, rgba(102,126,234,0.85) 0%, rgba(118,75,162,0.85) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
               color: 'white',
               borderRadius: 3,
               border: '1px solid rgba(255,255,255,0.2)',
@@ -205,8 +205,8 @@ export default function LearnPage() {
             sx={{
               p: 3,
               background: 'linear-gradient(135deg, rgba(67,233,123,0.85) 0%, rgba(56,249,215,0.85) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
               color: 'white',
               borderRadius: 3,
               border: '1px solid rgba(255,255,255,0.2)',
@@ -224,8 +224,8 @@ export default function LearnPage() {
             sx={{
               p: 3,
               background: 'linear-gradient(135deg, rgba(79,172,254,0.85) 0%, rgba(0,242,254,0.85) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              backdropFilter: 'blur(16px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(180%)',
               color: 'white',
               borderRadius: 3,
               border: '1px solid rgba(255,255,255,0.2)',
@@ -241,7 +241,7 @@ export default function LearnPage() {
       </Grid>
 
       {/* Tabs */}
-      <Paper sx={{ borderRadius: 3, ...glassSx }}>
+      <Paper sx={[glassSx, { borderRadius: 3 }]}>
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}
@@ -298,68 +298,72 @@ export default function LearnPage() {
                   return (
                     <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
                       <Card
+                        variant="outlined"
                         sx={{
-                          ...glassCardSx(),
-                          position: 'relative',
+                          borderRadius: 3,
+                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            boxShadow: '0 4px 20px rgba(102, 126, 234, 0.12)',
+                          },
                         }}
                       >
-                        {/* Delete Button */}
-                        <Tooltip title="Delete learning path">
-                          <IconButton
-                            size="small"
-                            aria-label={`Delete ${path.topic || 'learning path'}`}
-                            onClick={(e) => handleDeleteClick(e, path)}
-                            sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
-                              zIndex: 1,
-                              bgcolor: 'background.paper',
-                              '&:hover': {
-                                bgcolor: 'error.light',
-                                color: 'error.contrastText',
-                              },
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-
+                        {/* Clickable body */}
                         <CardActionArea onClick={() => handleContinuePath(path.conversation_thread_id)}>
-                          <CardContent>
-                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                              <Box sx={{ flex: 1, pr: 4 }}>
-                                <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-                                  {path.topic || 'Learning Path'}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                  Personalized learning journey
-                                </Typography>
-                              </Box>
-                              <Chip
-                                icon={<Timeline />}
-                                label={`${progressPercent.toFixed(0)}%`}
-                                color={progressPercent > 50 ? 'success' : 'primary'}
-                                size="small"
-                              />
-                            </Stack>
+                          <CardContent sx={{ pb: 1.5 }}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                              {path.topic || 'Learning Path'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Personalized learning journey
+                            </Typography>
+                          </CardContent>
+                        </CardActionArea>
 
+                        {/* Footer: progress + actions (outside CardActionArea) */}
+                        <Box sx={{ px: 2, pb: 2 }}>
+                          {/* Progress row */}
+                          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5 }}>
                             <LinearProgress
                               variant="determinate"
                               value={progressPercent}
-                              sx={{ height: 8, borderRadius: 4, mb: 2 }}
+                              sx={{ flex: 1, height: 6, borderRadius: 3 }}
                             />
+                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, minWidth: 32, textAlign: 'right' }}>
+                              {progressPercent.toFixed(0)}%
+                            </Typography>
+                          </Stack>
 
+                          {/* Actions row */}
+                          <Stack direction="row" justifyContent="space-between" alignItems="center">
                             <Button
-                              variant="outlined"
                               size="small"
                               startIcon={<PlayArrow />}
-                              sx={{ textTransform: 'none' }}
+                              onClick={() => handleContinuePath(path.conversation_thread_id)}
+                              sx={{ textTransform: 'none', fontWeight: 500 }}
                             >
-                              Continue Learning
+                              Continue
                             </Button>
-                          </CardContent>
-                        </CardActionArea>
+                            <Tooltip title="Delete learning path">
+                              <IconButton
+                                size="small"
+                                aria-label={`Delete ${path.topic || 'learning path'}`}
+                                onClick={(e) => handleDeleteClick(e, path)}
+                                sx={{
+                                  opacity: 0.5,
+                                  transition: 'all 0.2s',
+                                  '&:hover': {
+                                    opacity: 1,
+                                    bgcolor: 'error.light',
+                                    color: 'error.contrastText',
+                                  },
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Stack>
+                        </Box>
                       </Card>
                     </Grid>
                   );
@@ -368,17 +372,18 @@ export default function LearnPage() {
                 {/* Add New Path Card */}
                 <Grid size={{ xs: 12, md: 6 }}>
                   <Card
+                    variant="outlined"
                     sx={{
                       borderRadius: 3,
-                      border: '2px dashed',
-                      borderColor: 'divider',
-                      bgcolor: 'transparent',
+                      borderStyle: 'dashed',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': { borderColor: 'primary.main' },
                     }}
                   >
-                    <CardActionArea onClick={handleCreatePath} sx={{ height: '100%', minHeight: 180 }}>
+                    <CardActionArea onClick={handleCreatePath} sx={{ height: '100%', minHeight: 160 }}>
                       <CardContent sx={{ textAlign: 'center' }}>
-                        <AddIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                        <Typography variant="h6" color="text.secondary">
+                        <AddIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                        <Typography variant="subtitle1" color="text.secondary" sx={{ fontWeight: 500 }}>
                           New Learning Path
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -411,45 +416,39 @@ export default function LearnPage() {
                 {completedPaths.map((path) => (
                   <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
                     <Card
+                      variant="outlined"
                       sx={{
                         borderRadius: 3,
-                        bgcolor: 'success.light',
-                        position: 'relative',
+                        borderColor: 'success.main',
+                        borderLeftWidth: 4,
                       }}
                     >
-                      {/* Delete Button */}
-                      <Tooltip title="Delete learning path">
-                        <IconButton
-                          size="small"
-                          aria-label={`Delete ${path.topic || 'learning path'}`}
-                          onClick={(e) => handleDeleteClick(e, path)}
-                          sx={{
-                            position: 'absolute',
-                            top: 8,
-                            right: 8,
-                            zIndex: 1,
-                            bgcolor: 'background.paper',
-                            '&:hover': {
-                              bgcolor: 'error.light',
-                              color: 'error.contrastText',
-                            },
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-
                       <CardContent>
-                        <Stack direction="row" alignItems="center" spacing={2}>
-                          <CheckCircle sx={{ color: 'success.main', fontSize: 40 }} />
-                          <Box>
-                            <Typography variant="h6">
+                        <Stack direction="row" justifyContent="space-between" alignItems="center">
+                          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ flex: 1, minWidth: 0 }}>
+                            <CheckCircle color="success" />
+                            <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600 }}>
                               {path.topic || 'Learning Path'}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Completed!
-                            </Typography>
-                          </Box>
+                          </Stack>
+                          <Tooltip title="Delete learning path">
+                            <IconButton
+                              size="small"
+                              aria-label={`Delete ${path.topic || 'learning path'}`}
+                              onClick={(e) => handleDeleteClick(e, path)}
+                              sx={{
+                                opacity: 0.5,
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  opacity: 1,
+                                  bgcolor: 'error.light',
+                                  color: 'error.contrastText',
+                                },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </CardContent>
                     </Card>

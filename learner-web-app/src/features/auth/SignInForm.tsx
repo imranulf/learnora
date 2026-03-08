@@ -80,7 +80,7 @@ export default function SignInForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Paper elevation={24} sx={{ borderRadius: 4, p: 4 }}>
+          <Paper elevation={8} sx={{ borderRadius: 4, p: 4, backgroundImage: 'none' }}>
             {/* Logo and Title */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}

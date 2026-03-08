@@ -238,10 +238,7 @@ export default function HomePage() {
         ].map((item) => (
           <Grid size={{ xs: 6, md: 3 }} key={item.path}>
             <Card
-              sx={{
-                height: '100%',
-                ...glassCardSx(),
-              }}
+              sx={[glassCardSx(), { height: '100%' }]}
             >
               <CardActionArea onClick={() => navigate(item.path)} sx={{ height: '100%', p: 2 }}>
                 <CardContent sx={{ textAlign: 'center' }}>
@@ -263,7 +260,7 @@ export default function HomePage() {
       <Grid container spacing={3}>
         {/* Active Learning Paths */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Paper sx={{ p: 3, borderRadius: 3, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 3, borderRadius: 3 }]}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 Your Learning Paths
@@ -363,7 +360,7 @@ export default function HomePage() {
         {/* Sidebar */}
         <Grid size={{ xs: 12, md: 4 }}>
           {/* Achievements / Encouragement */}
-          <Paper sx={{ p: 3, borderRadius: 3, mb: 3, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 3, borderRadius: 3, mb: 3 }]}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
               <EmojiEvents color="warning" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -433,7 +430,7 @@ export default function HomePage() {
           </Paper>
 
           {/* Quick Tips */}
-          <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 3, borderRadius: 3 }]}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Learning Tips
             </Typography>

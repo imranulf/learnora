@@ -1,40 +1,27 @@
 /**
- * Glassmorphism style utilities for MUI sx prop.
+ * Shared card/surface style utilities for MUI sx prop.
+ *
+ * MUI v7 uses CSS variables for theming — do NOT check theme.palette.mode
+ * in sx callbacks (it always returns 'light'). Let MUI handle backgrounds.
  *
  * Usage:
- *   import { glassSx, glassCardSx } from '../common/styles/glass';
- *   <Paper sx={{ ...glassSx, p: 3 }} />
- *   <Card sx={{ ...glassCardSx(hoverColor) }} />
+ *   <Paper sx={[glassSx, { p: 3 }]} />
+ *   <Card sx={[glassCardSx(), { position: 'relative' }]} />
  */
 import type { SxProps, Theme } from '@mui/material/styles';
 
-/** Base glassmorphism surface */
+/** Clean surface — let MUI handle background, just add subtle border */
 export const glassSx: SxProps<Theme> = {
-  background: (theme: Theme) =>
-    theme.palette.mode === 'dark'
-      ? 'rgba(28, 28, 38, 0.8)'
-      : 'rgba(255, 255, 255, 0.55)',
-  backdropFilter: 'blur(16px) saturate(180%)',
-  WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-  border: (theme: Theme) =>
-    `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.5)'}`,
+  borderRadius: 3,
 };
 
-/** Glass card with hover lift + glow */
-export const glassCardSx = (hoverColor = 'rgba(102, 126, 234, 0.15)'): SxProps<Theme> => ({
-  ...glassSx,
+/** Card with hover lift + glow effect */
+export const glassCardSx = (_hoverColor?: string): SxProps<Theme> => ({
   borderRadius: 3,
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   '&:hover': {
     transform: 'translateY(-6px)',
-    boxShadow: (theme: Theme) =>
-      theme.palette.mode === 'dark'
-        ? `0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(102, 126, 234, 0.3)`
-        : `0 12px 28px ${hoverColor}`,
+    boxShadow: '0 8px 32px rgba(102, 126, 234, 0.18)',
     borderColor: 'primary.main',
-    background: (theme: Theme) =>
-      theme.palette.mode === 'dark'
-        ? 'rgba(35, 35, 50, 0.95)'
-        : 'rgba(255, 255, 255, 0.85)',
   },
 });

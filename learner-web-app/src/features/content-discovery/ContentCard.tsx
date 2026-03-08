@@ -143,17 +143,19 @@ export default function ContentCard({ result, onSelect }: ContentCardProps) {
             <Paper
                 onClick={handleClick}
                 elevation={0}
-                sx={{
-                    p: 3,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: '0 12px 28px rgba(102, 126, 234, 0.12)',
-                        borderColor: 'primary.main',
+                sx={[
+                    glassSx,
+                    {
+                        p: 3,
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: '0 12px 28px rgba(102, 126, 234, 0.12)',
+                            borderColor: 'primary.main',
+                        },
                     },
-                    ...glassSx,
-                }}
+                ]}
             >
                 {/* Header */}
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 2 }}>

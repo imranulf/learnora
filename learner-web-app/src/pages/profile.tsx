@@ -277,7 +277,7 @@ export default function ProfilePage() {
       {/* Quick Stats */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid size={{ xs: 6, sm: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 2, textAlign: 'center', borderRadius: 2 }]}>
             <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
               {knowledgeSummary?.total_concepts || 0}
             </Typography>
@@ -287,7 +287,7 @@ export default function ProfilePage() {
           </Paper>
         </Grid>
         <Grid size={{ xs: 6, sm: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 2, textAlign: 'center', borderRadius: 2 }]}>
             <Typography variant="h4" color="success.main" sx={{ fontWeight: 700 }}>
               {knowledgeSummary?.known || 0}
             </Typography>
@@ -297,7 +297,7 @@ export default function ProfilePage() {
           </Paper>
         </Grid>
         <Grid size={{ xs: 6, sm: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 2, textAlign: 'center', borderRadius: 2 }]}>
             <Typography variant="h4" color="warning.main" sx={{ fontWeight: 700 }}>
               {knowledgeSummary?.learning || 0}
             </Typography>
@@ -307,7 +307,7 @@ export default function ProfilePage() {
           </Paper>
         </Grid>
         <Grid size={{ xs: 6, sm: 3 }}>
-          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2, ...glassSx }}>
+          <Paper sx={[glassSx, { p: 2, textAlign: 'center', borderRadius: 2 }]}>
             <Typography variant="h4" sx={{ fontWeight: 700 }}>
               {Math.round((knowledgeSummary?.average_score || 0) * 100)}%
             </Typography>
@@ -319,7 +319,7 @@ export default function ProfilePage() {
       </Grid>
 
       {/* Tabs */}
-      <Paper sx={{ borderRadius: 3, ...glassSx }}>
+      <Paper sx={[glassSx, { borderRadius: 3 }]}>
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}

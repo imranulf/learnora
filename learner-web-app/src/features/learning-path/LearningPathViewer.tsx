@@ -727,6 +727,7 @@ export default function LearningPathViewer() {
                                 top: 16,
                                 right: 16,
                                 width: 280,
+                                backgroundImage: 'none',
                                 maxHeight: 'calc(100% - 32px)',
                                 overflow: 'auto',
                                 borderRadius: 2,

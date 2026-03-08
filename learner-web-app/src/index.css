@@ -16,3 +16,81 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ===== Glassmorphism: Toolpad Sidebar ===== */
+
+/* Sidebar navigation container */
+.MuiDrawer-paper {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.dark .MuiDrawer-paper {
+  background: rgba(18, 18, 24, 0.75) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Sidebar nav items — hover glow */
+.MuiDrawer-paper .MuiListItemButton-root {
+  border-radius: 12px !important;
+  margin: 2px 8px !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.MuiDrawer-paper .MuiListItemButton-root:hover {
+  background: rgba(102, 126, 234, 0.12) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.2), 0 4px 12px rgba(102, 126, 234, 0.1) !important;
+  transform: translateX(4px);
+}
+
+.dark .MuiDrawer-paper .MuiListItemButton-root:hover {
+  background: rgba(102, 126, 234, 0.18) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.3), 0 4px 16px rgba(102, 126, 234, 0.15) !important;
+}
+
+/* Active sidebar item */
+.MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
+  background: rgba(102, 126, 234, 0.15) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.3) !important;
+}
+
+.dark .MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
+  background: rgba(102, 126, 234, 0.25) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.4) !important;
+}
+
+/* ===== Glassmorphism: Top App Bar ===== */
+
+.MuiAppBar-root {
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.dark .MuiAppBar-root {
+  background: rgba(18, 18, 24, 0.75) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ===== Glassmorphism: MUI Tabs — hover color shift ===== */
+
+.MuiTab-root {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-radius: 12px 12px 0 0 !important;
+  margin: 0 2px !important;
+}
+
+.MuiTab-root:hover {
+  background: rgba(102, 126, 234, 0.08) !important;
+  color: #667eea !important;
+}
+
+.dark .MuiTab-root:hover {
+  background: rgba(102, 126, 234, 0.15) !important;
+  color: #8b9cf7 !important;
+}

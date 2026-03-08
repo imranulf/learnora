@@ -48,6 +48,7 @@ import { useSession } from '../hooks/useSession';
 import { useLearningPaths, useDeleteLearningPath } from '../hooks/useApiQueries';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
 import type { LearningPathResponse } from '../services/learningPath';
+import { glassSx, glassCardSx } from '../common/styles/glass';
 
 const PAGE_TITLE = 'Learn - Learnora';
 
@@ -184,9 +185,12 @@ export default function LearnPage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, rgba(102,126,234,0.85) 0%, rgba(118,75,162,0.85) 100%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: 'white',
               borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
             <AutoStories sx={{ fontSize: 32, mb: 1 }} />
@@ -200,9 +204,12 @@ export default function LearnPage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+              background: 'linear-gradient(135deg, rgba(67,233,123,0.85) 0%, rgba(56,249,215,0.85) 100%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: 'white',
               borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
             <CheckCircle sx={{ fontSize: 32, mb: 1 }} />
@@ -216,9 +223,12 @@ export default function LearnPage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              background: 'linear-gradient(135deg, rgba(79,172,254,0.85) 0%, rgba(0,242,254,0.85) 100%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: 'white',
               borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
             <TrendingUp sx={{ fontSize: 32, mb: 1 }} />
@@ -231,7 +241,7 @@ export default function LearnPage() {
       </Grid>
 
       {/* Tabs */}
-      <Paper sx={{ borderRadius: 3 }}>
+      <Paper sx={{ borderRadius: 3, ...glassSx }}>
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}
@@ -289,13 +299,8 @@ export default function LearnPage() {
                     <Grid size={{ xs: 12, md: 6 }} key={path.conversation_thread_id}>
                       <Card
                         sx={{
-                          borderRadius: 3,
-                          transition: 'transform 0.2s, box-shadow 0.2s',
+                          ...glassCardSx(),
                           position: 'relative',
-                          '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: 4,
-                          },
                         }}
                       >
                         {/* Delete Button */}

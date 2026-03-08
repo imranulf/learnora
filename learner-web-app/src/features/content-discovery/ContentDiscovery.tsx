@@ -187,7 +187,11 @@ export default function ContentDiscovery() {
                             placeholder="What would you like to learn today? (e.g., React hooks, Python data analysis)"
                             variant="outlined"
                             sx={{
-                                bgcolor: 'background.paper',
+                                bgcolor: (theme) => theme.palette.mode === 'dark'
+                                    ? 'rgba(30, 30, 40, 0.7)'
+                                    : 'rgba(255, 255, 255, 0.85)',
+                                backdropFilter: 'blur(16px)',
+                                WebkitBackdropFilter: 'blur(16px)',
                                 borderRadius: 3,
                                 '& .MuiOutlinedInput-root': {
                                     fontSize: '1.125rem',

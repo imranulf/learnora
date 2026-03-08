@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { useSession } from '../../hooks/useSession';
 import type { SearchResultItem } from '../../services/contentDiscovery';
 import { trackInteraction } from '../../services/preferences';
+import { glassSx } from '../../common/styles/glass';
 
 interface ContentCardProps {
     result: SearchResultItem;
@@ -141,17 +142,17 @@ export default function ContentCard({ result, onSelect }: ContentCardProps) {
         <>
             <Paper
                 onClick={handleClick}
-                elevation={1}
+                elevation={0}
                 sx={{
                     p: 3,
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                        boxShadow: 8,
+                        transform: 'translateY(-4px)',
+                        boxShadow: '0 12px 28px rgba(102, 126, 234, 0.12)',
                         borderColor: 'primary.main',
                     },
-                    border: 1,
-                    borderColor: 'divider',
+                    ...glassSx,
                 }}
             >
                 {/* Header */}

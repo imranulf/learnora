@@ -55,6 +55,7 @@ import type {
   QuizResultResponse,
 } from '../features/assessment/types';
 import { useSession } from '../hooks/useSession';
+import { glassSx, glassCardSx } from '../common/styles/glass';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -212,9 +213,12 @@ export default function PracticePage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              background: 'linear-gradient(135deg, rgba(240,147,251,0.85) 0%, rgba(245,87,108,0.85) 100%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: 'white',
               borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
             <Psychology sx={{ fontSize: 32, mb: 1 }} />
@@ -228,9 +232,12 @@ export default function PracticePage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              background: 'linear-gradient(135deg, rgba(79,172,254,0.85) 0%, rgba(0,242,254,0.85) 100%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: 'white',
               borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
             <QuizIcon sx={{ fontSize: 32, mb: 1 }} />
@@ -244,9 +251,12 @@ export default function PracticePage() {
           <Paper
             sx={{
               p: 3,
-              background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+              background: 'linear-gradient(135deg, rgba(255,236,210,0.85) 0%, rgba(252,182,159,0.85) 100%)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
               color: '#333',
               borderRadius: 3,
+              border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
             <EmojiEvents sx={{ fontSize: 32, mb: 1 }} />
@@ -259,7 +269,7 @@ export default function PracticePage() {
       </Grid>
 
       {/* Quick Quiz Section */}
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 3 }}>
+      <Paper sx={{ p: 3, mb: 4, borderRadius: 3, ...glassSx }}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
           <PlayArrow color="primary" />
           <Typography variant="h6">Quick Practice</Typography>
@@ -272,14 +282,8 @@ export default function PracticePage() {
             <Grid size={{ xs: 6, sm: 3 }} key={item.skill}>
               <Card
                 sx={{
+                  ...glassCardSx(`${item.color}20`),
                   borderRadius: 2,
-                  border: '2px solid',
-                  borderColor: 'divider',
-                  transition: 'all 0.2s',
-                  '&:hover': {
-                    borderColor: item.color,
-                    transform: 'translateY(-2px)',
-                  },
                 }}
               >
                 <CardActionArea
@@ -304,7 +308,7 @@ export default function PracticePage() {
       </Paper>
 
       {/* Tabs for Assessments and Quiz History */}
-      <Paper sx={{ borderRadius: 3 }}>
+      <Paper sx={{ borderRadius: 3, ...glassSx }}>
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}

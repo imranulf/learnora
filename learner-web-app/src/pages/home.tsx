@@ -229,104 +229,64 @@ export default function HomePage() {
         What would you like to do?
       </Typography>
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 6, md: 3 }}>
-          <Card
-            sx={{
-              height: '100%',
-              borderRadius: 3,
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
-            }}
-          >
-            <CardActionArea onClick={() => navigate('/learn')} sx={{ height: '100%', p: 2 }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <AutoStories sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Learn
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Continue your paths
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 6, md: 3 }}>
-          <Card
-            sx={{
-              height: '100%',
-              borderRadius: 3,
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
-            }}
-          >
-            <CardActionArea onClick={() => navigate('/practice')} sx={{ height: '100%', p: 2 }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Quiz sx={{ fontSize: 48, color: 'secondary.main', mb: 1 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Practice
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Test your skills
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 6, md: 3 }}>
-          <Card
-            sx={{
-              height: '100%',
-              borderRadius: 3,
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
-            }}
-          >
-            <CardActionArea onClick={() => navigate('/discover')} sx={{ height: '100%', p: 2 }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Explore sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Discover
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Find new content
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 6, md: 3 }}>
-          <Card
-            sx={{
-              height: '100%',
-              borderRadius: 3,
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': { transform: 'translateY(-4px)', boxShadow: 4 },
-            }}
-          >
-            <CardActionArea onClick={() => navigate('/profile')} sx={{ height: '100%', p: 2 }}>
-              <CardContent sx={{ textAlign: 'center' }}>
-                <Psychology sx={{ fontSize: 48, color: 'warning.main', mb: 1 }} />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Profile
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Your progress
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-          </Card>
-        </Grid>
+        {[
+          { path: '/learn', icon: <AutoStories sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />, label: 'Learn', desc: 'Continue your paths', hoverColor: 'rgba(102, 126, 234, 0.12)' },
+          { path: '/practice', icon: <Quiz sx={{ fontSize: 48, color: 'secondary.main', mb: 1 }} />, label: 'Practice', desc: 'Test your skills', hoverColor: 'rgba(156, 39, 176, 0.12)' },
+          { path: '/discover', icon: <Explore sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />, label: 'Discover', desc: 'Find new content', hoverColor: 'rgba(46, 125, 50, 0.12)' },
+          { path: '/profile', icon: <Psychology sx={{ fontSize: 48, color: 'warning.main', mb: 1 }} />, label: 'Profile', desc: 'Your progress', hoverColor: 'rgba(237, 108, 2, 0.12)' },
+        ].map((item) => (
+          <Grid size={{ xs: 6, md: 3 }} key={item.path}>
+            <Card
+              sx={{
+                height: '100%',
+                borderRadius: 3,
+                background: (theme) => theme.palette.mode === 'dark'
+                  ? 'rgba(30, 30, 40, 0.6)'
+                  : 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(16px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+                border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)'}`,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  transform: 'translateY(-6px)',
+                  boxShadow: `0 12px 28px ${item.hoverColor}`,
+                  borderColor: 'primary.main',
+                  background: (theme) => theme.palette.mode === 'dark'
+                    ? 'rgba(30, 30, 40, 0.8)'
+                    : 'rgba(255, 255, 255, 0.85)',
+                },
+              }}
+            >
+              <CardActionArea onClick={() => navigate(item.path)} sx={{ height: '100%', p: 2 }}>
+                <CardContent sx={{ textAlign: 'center' }}>
+                  {item.icon}
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {item.label}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {item.desc}
+                  </Typography>
+                </CardContent>
+              </CardActionArea>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
       {/* Main Content Area */}
       <Grid container spacing={3}>
         {/* Active Learning Paths */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
+          <Paper sx={{
+            p: 3,
+            borderRadius: 3,
+            background: (theme) => theme.palette.mode === 'dark'
+              ? 'rgba(30, 30, 40, 0.6)'
+              : 'rgba(255, 255, 255, 0.6)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}`,
+          }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 Your Learning Paths
@@ -426,7 +386,17 @@ export default function HomePage() {
         {/* Sidebar */}
         <Grid size={{ xs: 12, md: 4 }}>
           {/* Achievements / Encouragement */}
-          <Paper sx={{ p: 3, borderRadius: 3, mb: 3 }}>
+          <Paper sx={{
+            p: 3,
+            borderRadius: 3,
+            mb: 3,
+            background: (theme) => theme.palette.mode === 'dark'
+              ? 'rgba(30, 30, 40, 0.6)'
+              : 'rgba(255, 255, 255, 0.6)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}`,
+          }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
               <EmojiEvents color="warning" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -496,7 +466,16 @@ export default function HomePage() {
           </Paper>
 
           {/* Quick Tips */}
-          <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+          <Paper variant="outlined" sx={{
+            p: 3,
+            borderRadius: 3,
+            background: (theme) => theme.palette.mode === 'dark'
+              ? 'rgba(30, 30, 40, 0.6)'
+              : 'rgba(255, 255, 255, 0.6)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}`,
+          }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Learning Tips
             </Typography>

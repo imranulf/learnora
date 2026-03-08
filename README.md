@@ -56,25 +56,34 @@ learnora/
 │   │       ├── users/           # Authentication & preferences
 │   │       └── dashboard/       # Analytics & metrics
 │   ├── data/
-│   │   └── graph/instances/     # KG data files (.ttl)
+│   │   └── graph/              # KG ontologies & instance data (.ttl)
+│   ├── migrations/             # Database migration scripts
 │   └── pyproject.toml
 │
 ├── learner-web-app/             # Frontend SPA
 │   ├── src/
-│   │   ├── root.tsx             # Root layout
+│   │   ├── root.tsx             # Root layout with AppProviderWrapper
 │   │   ├── routes.ts            # Route definitions
-│   │   ├── pages/               # Route pages (home, learn, practice, discover)
-│   │   ├── features/            # Feature components
+│   │   ├── pages/               # Route pages
+│   │   │   ├── home.tsx         # Dashboard with stats & recent paths
+│   │   │   ├── learn.tsx        # Learning paths list & management
+│   │   │   ├── practice.tsx     # Quizzes & assessments
+│   │   │   ├── discover.tsx     # Content discovery & search
+│   │   │   ├── profile.tsx      # User profile & knowledge overview
+│   │   │   └── learning-path.tsx # Knowledge graph viewer
+│   │   ├── features/
 │   │   │   ├── agent/           # Floating chat, connected chat window
 │   │   │   ├── learning-path/   # Path viewer, progress, quiz dialog
 │   │   │   ├── assessment/      # Quiz player, results, assessment panel
-│   │   │   └── content-discovery/  # Content cards, search
+│   │   │   ├── content-discovery/ # Content cards, search UI
+│   │   │   └── auth/            # Sign in/up forms
 │   │   ├── services/            # API client & service modules
 │   │   ├── hooks/               # React Query hooks, chat context
-│   │   └── contexts/            # Auth & theme contexts
+│   │   ├── contexts/            # Session & chat contexts
+│   │   └── common/              # Shared layouts, providers, components
 │   └── package.json
 │
-└── scripts/                     # Utility scripts
+└── scripts/                     # Dev startup scripts (bash & PowerShell)
 ```
 
 ## Getting Started

@@ -181,7 +181,7 @@ async def get_stats(
     
     return {
         "service_active": service is not None,
-        "model_name": "gemini-2.5-flash",
+        "model_name": "gemini-1.5-flash",
         "supported_levels": ["beginner", "intermediate", "advanced", "expert"],
         "features": [
             "content_summarization",

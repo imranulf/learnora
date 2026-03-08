@@ -28,8 +28,11 @@ from app.config import settings
 if settings.GOOGLE_API_KEY and not os.environ.get("GOOGLE_API_KEY"):
     os.environ["GOOGLE_API_KEY"] = settings.GOOGLE_API_KEY
 
-# Initialize the model
+# Initialize models — separate models to spread free-tier quota (20 req/day per model)
+# LPP mode: used for intention evaluation, follow-up, formatting, goal definition, concept generation
 model = init_chat_model("gemini-2.5-flash-lite", model_provider="google_genai")
+# BASIC chat mode: general Q&A conversations
+basic_model = init_chat_model("gemini-2.0-flash-lite", model_provider="google_genai")
 
 basic_prompt_template = ChatPromptTemplate.from_messages(
     [
@@ -49,7 +52,7 @@ MAX_FOLLOW_UPS = 1
 def basic_call_model(state: IntentionState):
     """Handle general chat — send user's message to LLM and return response."""
     prompt = basic_prompt_template.invoke(state)
-    response = model.invoke(prompt)
+    response = basic_model.invoke(prompt)
     return {"messages": [response]}
 
 

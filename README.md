@@ -19,7 +19,7 @@ An AI-powered casual learning platform that creates personalized learning paths 
 |---|---|
 | **FastAPI** | Async Python web framework |
 | **LangChain / LangGraph** | LLM orchestration, multi-turn state machines |
-| **Google Gemini** | Primary LLM (`gemini-2.5-flash-lite` for agent, `gemini-2.5-flash` for content) |
+| **Google Gemini** | Primary LLM (5 models to maximize free-tier quota — see below) |
 | **RDFlib** | Knowledge graph storage (Turtle .ttl files) |
 | **SQLAlchemy** (async) | Relational database ORM (SQLite in dev) |
 | **fastapi-users** | JWT-based authentication |
@@ -206,9 +206,22 @@ With the backend running, visit:
 
 All endpoints are prefixed with `/api/v1`.
 
+## LLM Model Distribution
+
+The app spreads requests across 5 Gemini models to maximize the free-tier quota (20 requests/day per model = **100 total/day**):
+
+| Feature | Model | Why |
+|---------|-------|-----|
+| Agent chat — LPP mode | `gemini-2.5-flash-lite` | Structured output for intention evaluation, goal definition |
+| Agent chat — BASIC mode | `gemini-2.0-flash-lite` | Lightweight Q&A conversations |
+| Learning path generation | `gemini-2.5-flash` | Best quality for concept graph generation |
+| MCQ quiz generation | `gemini-2.0-flash` | Reliable structured MCQ output |
+| Content personalization | `gemini-1.5-flash` | Summaries and highlights don't need latest model |
+
+All models use a single `GOOGLE_API_KEY`. Rate limit errors (429) are caught and surfaced to the user with clear messages.
+
 ## Notes
 
-- **Gemini free tier** allows ~20 requests/day per model. The app handles rate limits gracefully with clear error messages.
 - Knowledge graph data is stored as `.ttl` (Turtle) files — no external graph database required.
 - Content discovery uses an in-memory vector store; indexed content is lost on server restart.
 

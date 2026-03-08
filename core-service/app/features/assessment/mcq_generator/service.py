@@ -26,7 +26,7 @@ from app.features.users.models import User
 logger = logging.getLogger(__name__)
 
 # LLM Configuration
-LLM_MODEL = "gemini-2.5-flash"
+LLM_MODEL = "gemini-2.0-flash"
 LLM_PROVIDER = "google_genai"
 LLM_TEMPERATURE = 0.7
 LLM_TIMEOUT = 60

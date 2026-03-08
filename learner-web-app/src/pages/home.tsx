@@ -42,6 +42,7 @@ import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
 import { useDashboardStats, useLearningPaths } from '../hooks/useApiQueries';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
+import { glassSx, glassCardSx } from '../common/styles/glass';
 
 const PAGE_TITLE = 'Home - Learnora';
 
@@ -230,31 +231,16 @@ export default function HomePage() {
       </Typography>
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {[
-          { path: '/learn', icon: <AutoStories sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />, label: 'Learn', desc: 'Continue your paths', hoverColor: 'rgba(102, 126, 234, 0.12)' },
-          { path: '/practice', icon: <Quiz sx={{ fontSize: 48, color: 'secondary.main', mb: 1 }} />, label: 'Practice', desc: 'Test your skills', hoverColor: 'rgba(156, 39, 176, 0.12)' },
-          { path: '/discover', icon: <Explore sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />, label: 'Discover', desc: 'Find new content', hoverColor: 'rgba(46, 125, 50, 0.12)' },
-          { path: '/profile', icon: <Psychology sx={{ fontSize: 48, color: 'warning.main', mb: 1 }} />, label: 'Profile', desc: 'Your progress', hoverColor: 'rgba(237, 108, 2, 0.12)' },
+          { path: '/learn', icon: <AutoStories sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />, label: 'Learn', desc: 'Continue your paths' },
+          { path: '/practice', icon: <Quiz sx={{ fontSize: 48, color: 'secondary.main', mb: 1 }} />, label: 'Practice', desc: 'Test your skills' },
+          { path: '/discover', icon: <Explore sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />, label: 'Discover', desc: 'Find new content' },
+          { path: '/profile', icon: <Psychology sx={{ fontSize: 48, color: 'warning.main', mb: 1 }} />, label: 'Profile', desc: 'Your progress' },
         ].map((item) => (
           <Grid size={{ xs: 6, md: 3 }} key={item.path}>
             <Card
               sx={{
                 height: '100%',
-                borderRadius: 3,
-                background: (theme) => theme.palette.mode === 'dark'
-                  ? 'rgba(30, 30, 40, 0.6)'
-                  : 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(16px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-                border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)'}`,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  transform: 'translateY(-6px)',
-                  boxShadow: `0 12px 28px ${item.hoverColor}`,
-                  borderColor: 'primary.main',
-                  background: (theme) => theme.palette.mode === 'dark'
-                    ? 'rgba(30, 30, 40, 0.8)'
-                    : 'rgba(255, 255, 255, 0.85)',
-                },
+                ...glassCardSx(),
               }}
             >
               <CardActionArea onClick={() => navigate(item.path)} sx={{ height: '100%', p: 2 }}>
@@ -277,16 +263,7 @@ export default function HomePage() {
       <Grid container spacing={3}>
         {/* Active Learning Paths */}
         <Grid size={{ xs: 12, md: 8 }}>
-          <Paper sx={{
-            p: 3,
-            borderRadius: 3,
-            background: (theme) => theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 40, 0.6)'
-              : 'rgba(255, 255, 255, 0.6)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}`,
-          }}>
+          <Paper sx={{ p: 3, borderRadius: 3, ...glassSx }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 Your Learning Paths
@@ -386,17 +363,7 @@ export default function HomePage() {
         {/* Sidebar */}
         <Grid size={{ xs: 12, md: 4 }}>
           {/* Achievements / Encouragement */}
-          <Paper sx={{
-            p: 3,
-            borderRadius: 3,
-            mb: 3,
-            background: (theme) => theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 40, 0.6)'
-              : 'rgba(255, 255, 255, 0.6)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}`,
-          }}>
+          <Paper sx={{ p: 3, borderRadius: 3, mb: 3, ...glassSx }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
               <EmojiEvents color="warning" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -466,16 +433,7 @@ export default function HomePage() {
           </Paper>
 
           {/* Quick Tips */}
-          <Paper variant="outlined" sx={{
-            p: 3,
-            borderRadius: 3,
-            background: (theme) => theme.palette.mode === 'dark'
-              ? 'rgba(30, 30, 40, 0.6)'
-              : 'rgba(255, 255, 255, 0.6)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            border: (theme) => `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.4)'}`,
-          }}>
+          <Paper variant="outlined" sx={{ p: 3, borderRadius: 3, ...glassSx }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Learning Tips
             </Typography>

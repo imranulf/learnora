@@ -19,46 +19,51 @@ body {
 
 /* ===== Glassmorphism: Toolpad Sidebar ===== */
 
-/* Sidebar navigation container */
+/* Sidebar navigation container — light mode */
 .MuiDrawer-paper {
   background: rgba(255, 255, 255, 0.7) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
 }
 
+/* Sidebar navigation container — dark mode */
 .dark .MuiDrawer-paper {
-  background: rgba(18, 18, 24, 0.75) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(18, 18, 28, 0.85) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Sidebar nav items — hover glow */
+/* Sidebar nav items — base */
 .MuiDrawer-paper .MuiListItemButton-root {
   border-radius: 12px !important;
   margin: 2px 8px !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+/* Sidebar nav items — hover light mode */
 .MuiDrawer-paper .MuiListItemButton-root:hover {
-  background: rgba(102, 126, 234, 0.12) !important;
-  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.2), 0 4px 12px rgba(102, 126, 234, 0.1) !important;
+  background: rgba(102, 126, 234, 0.1) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(102, 126, 234, 0.08) !important;
   transform: translateX(4px);
 }
 
+/* Sidebar nav items — hover dark mode (much brighter) */
 .dark .MuiDrawer-paper .MuiListItemButton-root:hover {
-  background: rgba(102, 126, 234, 0.18) !important;
-  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.3), 0 4px 16px rgba(102, 126, 234, 0.15) !important;
-}
-
-/* Active sidebar item */
-.MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
-  background: rgba(102, 126, 234, 0.15) !important;
-  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.3) !important;
-}
-
-.dark .MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
   background: rgba(102, 126, 234, 0.25) !important;
-  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.4) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.4), 0 4px 20px rgba(102, 126, 234, 0.2) !important;
+  transform: translateX(4px);
+}
+
+/* Active sidebar item — light mode */
+.MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
+  background: rgba(102, 126, 234, 0.12) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.25) !important;
+}
+
+/* Active sidebar item — dark mode (brighter) */
+.dark .MuiDrawer-paper .MuiListItemButton-root.Mui-selected {
+  background: rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.5) !important;
 }
 
 /* ===== Glassmorphism: Top App Bar ===== */
@@ -72,12 +77,12 @@ body {
 }
 
 .dark .MuiAppBar-root {
-  background: rgba(18, 18, 24, 0.75) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  background: rgba(18, 18, 28, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* ===== Glassmorphism: MUI Tabs — hover color shift ===== */
+/* ===== MUI Tabs — hover color shift ===== */
 
 .MuiTab-root {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
@@ -85,12 +90,14 @@ body {
   margin: 0 2px !important;
 }
 
+/* Tabs hover — light mode */
 .MuiTab-root:hover {
   background: rgba(102, 126, 234, 0.08) !important;
   color: #667eea !important;
 }
 
+/* Tabs hover — dark mode (brighter background + lighter text) */
 .dark .MuiTab-root:hover {
-  background: rgba(102, 126, 234, 0.15) !important;
-  color: #8b9cf7 !important;
+  background: rgba(102, 126, 234, 0.22) !important;
+  color: #a5b4fc !important;
 }

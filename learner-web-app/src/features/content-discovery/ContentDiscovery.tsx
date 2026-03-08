@@ -188,7 +188,7 @@ export default function ContentDiscovery() {
                             variant="outlined"
                             sx={{
                                 bgcolor: (theme) => theme.palette.mode === 'dark'
-                                    ? 'rgba(30, 30, 40, 0.7)'
+                                    ? 'rgba(28, 28, 38, 0.85)'
                                     : 'rgba(255, 255, 255, 0.85)',
                                 backdropFilter: 'blur(16px)',
                                 WebkitBackdropFilter: 'blur(16px)',

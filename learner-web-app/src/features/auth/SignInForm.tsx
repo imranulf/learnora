@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import DarkModeToggle from '../../common/components/DarkModeToggle';
 import { useSession } from '../../hooks/useSession';
@@ -23,6 +23,8 @@ export default function SignInForm() {
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { document.title = 'Sign In - Learnora'; }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

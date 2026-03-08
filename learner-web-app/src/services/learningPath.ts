@@ -1,6 +1,5 @@
 // Learning Path API Service
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const API_V1_PREFIX = '/api/v1';
+import { fetchAPI, ApiError, API_V1_PREFIX } from './apiClient';
 
 export interface ConceptInfo {
     id: string;
@@ -30,62 +29,6 @@ export interface StartRequest {
 export interface GraphResponse {
     thread_id: string;
     messages?: unknown;
-}/**
- * Fetch all learning paths
- */
-export async function getAllLearningPaths(
-    token: string,
-    skip = 0,
-    limit = 100
-): Promise<LearningPathResponse[]> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths?skip=${skip}&limit=${limit}`,
-        {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        }
-    ); if (!response.ok) {
-        throw new Error(`Failed to fetch learning paths: ${response.statusText}`);
-    }
-
-    return response.json();
-}
-
-/**
- * Get learning path by thread ID
- */
-export async function getLearningPath(threadId: string, token: string): Promise<LearningPathResponse> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/${threadId}`,
-        {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        }
-    ); if (!response.ok) {
-        throw new Error(`Failed to fetch learning path: ${response.statusText}`);
-    }
-
-    return response.json();
-}
-
-/**
- * Get knowledge graph for a learning path
- */
-export async function getLearningPathKG(threadId: string, token: string): Promise<LearningPathKGResponse> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/${threadId}/knowledge-graph`,
-        {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        }
-    ); if (!response.ok) {
-        throw new Error(`Failed to fetch learning path knowledge graph: ${response.statusText}`);
-    }
-
-    return response.json();
 }
 
 export interface DuplicateTopicError {
@@ -94,58 +37,82 @@ export interface DuplicateTopicError {
     existing_thread_id: string;
 }
 
-export interface ApiError {
+export interface LearningPathApiError {
     status: number;
     detail: DuplicateTopicError | string;
+}
+
+/**
+ * Fetch all learning paths
+ */
+export async function getAllLearningPaths(
+    token: string,
+    skip = 0,
+    limit = 100
+): Promise<LearningPathResponse[]> {
+    return fetchAPI<LearningPathResponse[]>(
+        `${API_V1_PREFIX}/learning-paths?skip=${skip}&limit=${limit}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+}
+
+/**
+ * Get learning path by thread ID
+ */
+export async function getLearningPath(threadId: string, token: string): Promise<LearningPathResponse> {
+    return fetchAPI<LearningPathResponse>(
+        `${API_V1_PREFIX}/learning-paths/${threadId}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+}
+
+/**
+ * Get knowledge graph for a learning path
+ */
+export async function getLearningPathKG(threadId: string, token: string): Promise<LearningPathKGResponse> {
+    return fetchAPI<LearningPathKGResponse>(
+        `${API_V1_PREFIX}/learning-paths/${threadId}/knowledge-graph`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+    );
 }
 
 /**
  * Start a new learning path
  */
 export async function startLearningPath(topic: string, token: string): Promise<GraphResponse> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/start`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({ learning_topic: topic }),
-        }
-    );
-
-    if (!response.ok) {
-        // Handle 409 Conflict (duplicate topic)
-        if (response.status === 409) {
-            const errorData = await response.json();
-            const error = new Error(errorData.detail?.message || 'Duplicate topic') as Error & { apiError: ApiError };
-            error.apiError = {
-                status: 409,
-                detail: errorData.detail,
-            };
+    try {
+        return await fetchAPI<GraphResponse>(
+            `${API_V1_PREFIX}/learning-paths/start`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ learning_topic: topic }),
+            }
+        );
+    } catch (err) {
+        // Re-throw with structured duplicate info for 409
+        if (err instanceof ApiError && err.status === 409) {
+            const error = new Error(
+                typeof err.detail === 'object' && err.detail !== null && 'message' in err.detail
+                    ? (err.detail as { message: string }).message
+                    : 'Duplicate topic'
+            ) as Error & { apiError: LearningPathApiError };
+            error.apiError = { status: 409, detail: err.detail as DuplicateTopicError | string };
             throw error;
         }
-        throw new Error(`Failed to start learning path: ${response.statusText}`);
+        throw err;
     }
-
-    return response.json();
 }
 
 /**
  * Delete a learning path
  */
 export async function deleteLearningPath(threadId: string, token: string): Promise<void> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/${threadId}`,
+    return fetchAPI<void>(
+        `${API_V1_PREFIX}/learning-paths/${threadId}`,
         {
             method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
+            headers: { 'Authorization': `Bearer ${token}` },
         }
     );
-    if (!response.ok) {
-        throw new Error(`Failed to delete learning path: ${response.statusText}`);
-    }
 }

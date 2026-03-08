@@ -151,7 +151,7 @@ def update_concept(
     - **updates**: Fields to update (only provided fields will be updated)
     """
     try:
-        result = service.update_concept(concept_id, updates.dict(exclude_unset=True))
+        result = service.update_concept(concept_id, updates.model_dump(exclude_unset=True))
         if not result:
             raise HTTPException(status_code=404, detail="Concept not found")
         return result
@@ -185,129 +185,18 @@ def delete_concept(
 
 
 @router.get("/{concept_id}/prerequisites", response_model=List[str])
-def get_concept_prerequisites(concept_id: str):
+def get_concept_prerequisites(
+    concept_id: str,
+    current_user: User = Depends(get_current_user),
+):
     """
     Get prerequisites for a specific concept.
-    
+
     - **concept_id**: The unique identifier of the concept
     """
     concept_uri = service.get_concept(concept_id)
     if not concept_uri:
         raise HTTPException(status_code=404, detail="Concept not found")
-    
-    prereq_uris = service.get_concept_prerequisites(concept_id)
-    return [str(uri).split("#")[-1] for uri in prereq_uris]
 
-
-
-@router.get("/", response_model=ConceptListResponse)
-def list_concepts(
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search query"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    difficulty: Optional[str] = Query(None, description="Filter by difficulty"),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    List all concepts with pagination and filters.
-    
-    - **page**: Page number (default: 1)
-    - **page_size**: Items per page (default: 20, max: 100)
-    - **search**: Search in title, description, tags
-    - **category**: Filter by category
-    - **difficulty**: Filter by difficulty
-    """
-    try:
-        result = service.list_concepts_paginated(
-            page=page,
-            page_size=page_size,
-            search=search,
-            category=category,
-            difficulty=difficulty
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list concepts: {str(e)}")
-
-
-@router.get("/{concept_id}", response_model=ConceptResponse)
-def get_concept(
-    concept_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get information about a specific concept.
-    
-    - **concept_id**: The unique identifier of the concept
-    """
-    try:
-        concept = service.get_concept_details(concept_id)
-        if not concept:
-            raise HTTPException(status_code=404, detail="Concept not found")
-        return concept
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get concept: {str(e)}")
-
-
-@router.patch("/{concept_id}", response_model=ConceptResponse)
-def update_concept(
-    concept_id: str,
-    updates: ConceptUpdate,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Update a concept.
-    
-    - **concept_id**: The unique identifier of the concept
-    - **updates**: Fields to update (only provided fields will be updated)
-    """
-    try:
-        result = service.update_concept(concept_id, updates.dict(exclude_unset=True))
-        if not result:
-            raise HTTPException(status_code=404, detail="Concept not found")
-        return result
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update concept: {str(e)}")
-
-
-@router.delete("/{concept_id}")
-def delete_concept(
-    concept_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Delete a concept.
-    
-    - **concept_id**: The unique identifier of the concept to delete
-    """
-    try:
-        success = service.delete_concept(concept_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Concept not found")
-        return {"message": f"Concept '{concept_id}' deleted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete concept: {str(e)}")
-
-
-@router.get("/{concept_id}/prerequisites", response_model=List[str])
-def get_concept_prerequisites(concept_id: str):
-    """
-    Get prerequisites for a specific concept.
-    
-    - **concept_id**: The unique identifier of the concept
-    """
-    concept_uri = service.get_concept(concept_id)
-    if not concept_uri:
-        raise HTTPException(status_code=404, detail="Concept not found")
-    
     prereq_uris = service.get_concept_prerequisites(concept_id)
     return [str(uri).split("#")[-1] for uri in prereq_uris]

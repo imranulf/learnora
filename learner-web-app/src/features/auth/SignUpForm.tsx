@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import DarkModeToggle from '../../common/components/DarkModeToggle';
 import { useSession } from '../../hooks/useSession';
@@ -21,6 +21,8 @@ export default function SignUpForm() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { document.title = 'Sign Up - Learnora'; }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

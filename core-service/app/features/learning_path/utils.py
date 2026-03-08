@@ -90,7 +90,7 @@ def parse_and_store_concepts(
 ) -> None:
     """
     Parse JSON array of concepts and store in KG.
-    
+
     Args:
         user_id: User identifier who owns this learning path
         thread_id: The thread identifier
@@ -100,24 +100,24 @@ def parse_and_store_concepts(
         concept_service: ConceptService instance for adding concepts
         create_learning_path_callback: Callback function to create learning path
     """
-    try:
-        if not concepts_data:
-            logger.warning(f"No concepts found in JSON for thread {thread_id}")
-            return
-        
-        concept_ids = []
-        
-        # First pass: Create all concepts without prerequisites
-        for concept_data in concepts_data:
-            concept_name = concept_data.get("concept", "")
-            
-            if not concept_name:
-                logger.warning(f"Skipping concept with missing name: {concept_data}")
-                continue
-            
-            # Convert concept name to ID (e.g., "Data Types" -> "data_types")
-            concept_id = concept_name.lower().replace(" ", "_").replace("-", "_")
-            
+    if not concepts_data:
+        logger.warning(f"No concepts found in JSON for thread {thread_id}")
+        return
+
+    concept_ids = []
+
+    # First pass: Create all concepts without prerequisites
+    for concept_data in concepts_data:
+        concept_name = concept_data.get("concept", "")
+
+        if not concept_name:
+            logger.warning(f"Skipping concept with missing name: {concept_data}")
+            continue
+
+        # Convert concept name to ID (e.g., "Data Types" -> "data_types")
+        concept_id = concept_name.lower().replace(" ", "_").replace("-", "_")
+
+        try:
             # Add concept (service handles duplicates)
             concept_service.add_concept(
                 concept_id=concept_id,
@@ -125,36 +125,50 @@ def parse_and_store_concepts(
                 description=f"Concept for learning path: {topic}"
             )
             concept_ids.append(concept_id)
-        
-        # Second pass: Add prerequisites
-        for concept_data in concepts_data:
-            concept_name = concept_data.get("concept", "")
-            prerequisites = concept_data.get("prerequisites", [])
-            
-            if not concept_name:
+        except Exception as e:
+            logger.warning(f"Failed to create concept '{concept_id}': {e}")
+            concept_ids.append(concept_id)  # Still track it for the learning path
+
+    # Second pass: Add prerequisites (non-fatal — skip invalid prereqs)
+    for concept_data in concepts_data:
+        concept_name = concept_data.get("concept", "")
+        prerequisites = concept_data.get("prerequisites", [])
+
+        if not concept_name or not prerequisites:
+            continue
+
+        concept_id = concept_name.lower().replace(" ", "_").replace("-", "_")
+
+        # Convert prerequisite names to IDs, filtering to only those that exist
+        prereq_ids = []
+        for prereq in prerequisites:
+            if not prereq:
                 continue
-            
-            concept_id = concept_name.lower().replace(" ", "_").replace("-", "_")
-            
-            # Convert prerequisite names to IDs
-            prereq_ids = [
-                prereq.lower().replace(" ", "_").replace("-", "_")
-                for prereq in prerequisites
-                if prereq
-            ]
-            
-            # Re-add concept with prerequisites (KG layer handles this)
-            if prereq_ids:
-                concept_service.add_concept(
+            prereq_id = prereq.lower().replace(" ", "_").replace("-", "_")
+            if prereq_id in concept_ids:
+                prereq_ids.append(prereq_id)
+            else:
+                logger.warning(
+                    f"Prerequisite '{prereq}' (id: {prereq_id}) not found in "
+                    f"concept list for thread {thread_id}, skipping"
+                )
+
+        # Add prerequisites via KG layer directly (bypass validation)
+        if prereq_ids:
+            try:
+                concept_service.kg.create_concept(
                     concept_id=concept_id,
                     label=concept_name,
                     prerequisites=prereq_ids
                 )
-        
-        # Create learning path in KG
-        if concept_ids:
+            except Exception as e:
+                logger.warning(f"Failed to add prerequisites for '{concept_id}': {e}")
+
+    # Create learning path in KG — always attempt if we have concepts
+    if concept_ids:
+        try:
             create_learning_path_callback(user_id, thread_id, topic, concept_ids)
             logger.info(f"Stored {len(concept_ids)} concepts in KG for thread {thread_id}")
-        
-    except Exception as e:
-        logger.error(f"Error parsing and storing concepts: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Failed to create learning path in KG for thread {thread_id}: {e}", exc_info=True)
+            raise

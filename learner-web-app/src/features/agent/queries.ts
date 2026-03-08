@@ -1,0 +1,43 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { startChat, continueChat, getChatSession } from './api';
+import type { AgentMode, ChatSession } from './types';
+
+export const chatKeys = {
+  all: ['chat'] as const,
+  session: (threadId: string) => [...chatKeys.all, 'session', threadId] as const,
+};
+
+/** Hook to fetch a chat session by thread_id */
+export function useChatSession(threadId: string | null) {
+  return useQuery({
+    queryKey: chatKeys.session(threadId || ''),
+    queryFn: () => getChatSession(threadId!),
+    enabled: !!threadId,
+    staleTime: 30000,
+  });
+}
+
+/** Hook to start a new chat session */
+export function useStartChat() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { message?: string; mode?: AgentMode }) => startChat(params),
+    onSuccess: (data: ChatSession) => {
+      queryClient.setQueryData(chatKeys.session(data.thread_id), data);
+    },
+  });
+}
+
+/** Hook to continue an existing chat session */
+export function useContinueChat(threadId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { message: string; mode?: AgentMode }) =>
+      continueChat(threadId, params),
+    onSuccess: (data: ChatSession) => {
+      queryClient.setQueryData(chatKeys.session(threadId), data);
+    },
+  });
+}

@@ -6,9 +6,20 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import { useColorScheme } from '@mui/material/styles';
 import type { Authentication, Navigation } from '@toolpad/core';
 import { ReactRouterAppProvider } from "@toolpad/core/react-router";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as React from 'react';
 import SessionContext, { type Session } from '../../contexts/SessionContext';
+import { ChatProvider } from '../../contexts/ChatContext';
 import { getCurrentSession, signOut } from '../../services/auth';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      retry: 1,
+    },
+  },
+});
 
 /**
  * Simplified Navigation Structure
@@ -121,16 +132,20 @@ export default function AppProviderWrapper({ children }: Readonly<{ children: Re
   }, []);
 
   return (
-    <ReactRouterAppProvider
-      navigation={NAVIGATION}
-      branding={BRANDING}
-      session={session}
-      authentication={authentication}
-    >
-      <DarkModeSync />
-      <SessionContext.Provider value={sessionContextValue}>
-        {children}
-      </SessionContext.Provider>
-    </ReactRouterAppProvider>
+    <QueryClientProvider client={queryClient}>
+      <ReactRouterAppProvider
+        navigation={NAVIGATION}
+        branding={BRANDING}
+        session={session}
+        authentication={authentication}
+      >
+        <DarkModeSync />
+        <SessionContext.Provider value={sessionContextValue}>
+          <ChatProvider>
+            {children}
+          </ChatProvider>
+        </SessionContext.Provider>
+      </ReactRouterAppProvider>
+    </QueryClientProvider>
   );
 }

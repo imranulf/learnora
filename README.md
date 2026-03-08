@@ -1,63 +1,113 @@
 # Learnora
 
-**AI-powered Learning Path Planner with Knowledge Graph Support + Dynamic Knowledge Evaluation**
+An AI-powered casual learning platform that creates personalized learning paths using knowledge graphs, LLM-driven conversation, and adaptive assessments.
 
-An intelligent learning platform that suggests personalized content based on user goals, current knowledge level, and learning preferences. Now includes advanced adaptive testing and knowledge tracing capabilities.
+## Features
 
-> ✅ **Latest Version: 0.2.1** - All critical bugs resolved. Learning Path Progress tracking fully functional with async SQLAlchemy support. See [CHANGELOG.md](CHANGELOG.md) for complete update history.
+- **AI Learning Path Planning** — A conversational agent guides you through defining learning goals and generates a structured concept graph with prerequisites
+- **Knowledge Graph Visualization** — Interactive graph view of concepts and their relationships, with progress-based color coding
+- **Adaptive Assessments** — AI-generated quizzes using IRT (Item Response Theory) and BKT (Bayesian Knowledge Tracing) to track mastery
+- **Content Discovery** — Search and crawl external learning resources (YouTube, web, Medium) with hybrid search (BM25 + Dense)
+- **Personalized Content** — AI-powered difficulty adaptation, summaries, key takeaways, and time estimates
+- **Progress Tracking** — Dashboard with analytics, completion metrics, and per-concept mastery levels
+- **Dark Mode** — Full dark/light theme support across the application
 
-## 🌟 Features
+## Tech Stack
 
-### Backend (FastAPI + Python)
-- 🎯 **Learning Path Planning**: AI-powered learning path generation using LangGraph
-- 📊 **Learning Path Progress Tracking**: Track concept mastery, progress status, and time spent
-- 🧠 **Knowledge Graph**: RDF-based knowledge storage for user learning data
-- 🎓 **Dynamic Knowledge Evaluation**: Adaptive testing (IRT/CAT), Bayesian knowledge tracing (BKT), multi-modal assessment
-- 📈 **Learning Analytics**: Comprehensive progress tracking, mastery levels, learning gap identification
-- 👤 **User Management**: Complete authentication system with FastAPI-Users
-- 🎓 **Concept Management**: Track and manage learning concepts
-- 🔍 **Content Discovery**: Integrated content discovery with YouTube, Medium, DuckDuckGo, and GitHub
-- 🤖 **AI Content Enhancement**: Perplexity AI for difficulty detection, tag extraction, and quality scoring
-- 🗄️ **Database**: SQLAlchemy 2.0 with async support (SQLite/PostgreSQL)
-- 🔐 **Security**: JWT authentication, secure password hashing
-- 📝 **API Documentation**: Auto-generated OpenAPI/Swagger docs
+### Backend
+| Technology | Purpose |
+|---|---|
+| **FastAPI** | Async Python web framework |
+| **LangChain / LangGraph** | LLM orchestration, multi-turn state machines |
+| **Google Gemini** | Primary LLM (`gemini-2.5-flash-lite` for agent, `gemini-2.5-flash` for content) |
+| **RDFlib** | Knowledge graph storage (Turtle .ttl files) |
+| **SQLAlchemy** (async) | Relational database ORM (SQLite in dev) |
+| **fastapi-users** | JWT-based authentication |
 
-### Frontend (React + TypeScript)
-- ⚛️ **React 19**: Latest React with TypeScript
-- 🎨 **Material-UI**: Complete MUI component library + Toolpad
-- 🧭 **React Router v7**: Modern routing with data loading
-- 🔒 **Authentication**: Sign-in/sign-up flows with session management
-- 📱 **Responsive**: Mobile-friendly dashboard layout
-- ⚡ **Fast**: Vite for lightning-fast development
+### Frontend
+| Technology | Purpose |
+|---|---|
+| **React 19** + **TypeScript** | UI framework |
+| **Vite** | Build tool |
+| **Material UI (MUI)** | Component library |
+| **React Query** | Server state management with caching |
+| **React Router 7** | Client-side routing |
+| **vis-network** | Knowledge graph visualization |
+| **Framer Motion** | Animations |
 
-## 🚀 Quick Start
+## Project Structure
+
+```
+learnora/
+├── core-service/                # Backend API
+│   ├── app/
+│   │   ├── main.py              # FastAPI app entry point
+│   │   ├── config.py            # Environment settings (pydantic-settings)
+│   │   ├── database/            # SQLAlchemy async + sync session setup
+│   │   ├── kg/                  # Knowledge graph ontologies
+│   │   └── features/
+│   │       ├── agent/           # AI chat & learning path graph (LangGraph)
+│   │       ├── learning_path/   # Learning path CRUD, progress, KG integration
+│   │       ├── concept/         # Concept management & explanations
+│   │       ├── assessment/      # Quiz generation (IRT + BKT) & evaluation
+│   │       ├── content_discovery/    # External content search & crawling
+│   │       ├── content_personalization/  # AI-powered content adaptation
+│   │       ├── knowledge_graph/ # RDFlib graph operations
+│   │       ├── users/           # Authentication & preferences
+│   │       └── dashboard/       # Analytics & metrics
+│   ├── data/
+│   │   └── graph/instances/     # KG data files (.ttl)
+│   └── pyproject.toml
+│
+├── learner-web-app/             # Frontend SPA
+│   ├── src/
+│   │   ├── root.tsx             # Root layout
+│   │   ├── routes.ts            # Route definitions
+│   │   ├── pages/               # Route pages (home, learn, practice, discover)
+│   │   ├── features/            # Feature components
+│   │   │   ├── agent/           # Floating chat, connected chat window
+│   │   │   ├── learning-path/   # Path viewer, progress, quiz dialog
+│   │   │   ├── assessment/      # Quiz player, results, assessment panel
+│   │   │   └── content-discovery/  # Content cards, search
+│   │   ├── services/            # API client & service modules
+│   │   ├── hooks/               # React Query hooks, chat context
+│   │   └── contexts/            # Auth & theme contexts
+│   └── package.json
+│
+└── scripts/                     # Utility scripts
+```
+
+## Getting Started
 
 ### Prerequisites
-- Python 3.12+
+
+- Python 3.11+
 - Node.js 18+
-- npm or yarn
+- Google Gemini API key ([Get one here](https://aistudio.google.com/apikey))
 
 ### Backend Setup
 
 ```bash
 cd core-service
 
-# Install dependencies (using uv - recommended)
+# Option 1: Using uv (recommended)
 uv sync
 
-# Or using pip
+# Option 2: Using pip
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
 pip install -e .
 
-# Create .env file
+# Configure environment
 cp .env.example .env
-# Edit .env and add your API keys
+# Edit .env — at minimum set GOOGLE_API_KEY and SECRET_KEY
 
 # Run the server
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
-
-The backend will be available at `http://localhost:8000`
-API docs at `http://localhost:8000/docs`
 
 ### Frontend Setup
 
@@ -67,169 +117,92 @@ cd learner-web-app
 # Install dependencies
 npm install
 
-# Run the development server
+# Configure environment
+echo "VITE_API_BASE_URL=http://localhost:8000" > .env
+
+# Run development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`
+The frontend runs at `http://localhost:5173` and the API at `http://localhost:8000`.
 
-## 📁 Project Structure
+## Environment Variables
+
+### Backend (`core-service/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `GOOGLE_API_KEY` | Yes | Google Gemini API key |
+| `SECRET_KEY` | Yes | JWT signing secret |
+| `DATABASE_URL` | No | SQLAlchemy async URL (defaults to SQLite) |
+| `YOUTUBE_API_KEY` | No | YouTube Data API key for content discovery |
+| `PERPLEXITY_API_KEY` | No | Perplexity API for AI-enhanced search |
+
+### Frontend (`learner-web-app/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_API_BASE_URL` | Yes | Backend API URL (default: `http://localhost:8000`) |
+
+## How It Works
+
+### Learning Path Creation
 
 ```
-Learnora/
-├── core-service/          # Backend (FastAPI)
-│   ├── app/
-│   │   ├── config.py      # Configuration management
-│   │   ├── main.py        # FastAPI application
-│   │   ├── database/      # Database models and connection
-│   │   ├── features/      # Feature modules
-│   │   │   ├── users/     # User authentication & management
-│   │   │   ├── learning_path/  # Learning path planning
-│   │   │   ├── concept/   # Concept management
-│   │   │   └── content/   # Content discovery
-│   │   └── kg/            # Knowledge Graph (RDF)
-│   ├── tests/             # Unit tests
-│   └── pyproject.toml     # Python dependencies
-│
-├── learner-web-app/       # Frontend (React + TypeScript)
-│   ├── src/
-│   │   ├── features/      # Feature modules
-│   │   │   └── auth/      # Authentication components
-│   │   ├── pages/         # Page components
-│   │   ├── common/        # Shared components
-│   │   │   └── layouts/   # Layout components
-│   │   ├── contexts/      # React contexts
-│   │   ├── hooks/         # Custom React hooks
-│   │   ├── services/      # API services
-│   │   └── routes.ts      # Route configuration
-│   └── package.json       # Node dependencies
-│
-└── README.md              # This file
+User starts chat (LPP mode)
+    │
+    ▼
+AI asks clarifying questions ──► User provides learning goal
+    │
+    ▼
+Intention evaluated ──► Follow-up if unclear (max 1)
+    │
+    ▼
+Learning goal formally defined (competencies + success criteria)
+    │
+    ▼
+Concept graph generated (concepts + prerequisites)
+    │
+    ▼
+Saved to DB + Knowledge Graph (.ttl files)
+    │
+    ▼
+Interactive graph visualization with progress tracking
 ```
 
-## 🛠️ Technology Stack
+### Assessment & Mastery
 
-### Backend
-- **FastAPI**: Modern, fast web framework
-- **LangChain & LangGraph**: AI agent framework
-- **Google Generative AI**: LLM integration
-- **SQLAlchemy**: SQL toolkit and ORM
-- **FastAPI-Users**: User authentication
-- **RDFLib**: Knowledge graph support
-- **Pydantic**: Data validation
-- **aiosqlite**: Async SQLite support
+1. Select a concept from the knowledge graph (prerequisites must be mastered first)
+2. AI generates quiz questions tailored to the concept
+3. Responses evaluated using IRT (difficulty estimation) and BKT (knowledge tracing)
+4. Mastery level updates automatically (threshold: 0.7 = mastered)
+5. Graph nodes change color to reflect progress
 
-### Frontend
-- **React 19**: UI library
-- **TypeScript**: Type safety
-- **Vite**: Build tool
-- **React Router v7**: Routing
-- **Material-UI (MUI)**: Component library
-- **@toolpad/core**: Authentication components
-- **Emotion**: CSS-in-JS styling
+### Architecture
 
-## 🔧 Configuration
-
-### Backend (.env)
-```env
-# App Settings
-APP_ENV=development
-DEBUG=True
-SECRET_KEY=your-secret-key-here
-
-# Database
-DATABASE_URL=sqlite:///./learnora.db
-
-# Google AI
-GOOGLE_API_KEY=your-google-api-key
-
-# LangSmith (optional)
-LANGSMITH_TRACING=False
-LANGSMITH_API_KEY=
+```
+User ──► React Frontend ──► FastAPI Backend ──► Gemini LLM
+              │                    │
+              │                    ├──► SQLite (paths, users, progress, knowledge state)
+              │                    └──► RDFlib/TTL (concept graphs, relationships)
+              │
+              └── vis-network (interactive graph visualization)
 ```
 
-### Frontend
-Configured in `vite.config.ts` and connects to backend at `http://localhost:8000`
+## API Documentation
 
-## 📚 API Documentation
+With the backend running, visit:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
-Once the backend is running, visit:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+All endpoints are prefixed with `/api/v1`.
 
-### Main Endpoints
+## Notes
 
-- `POST /api/v1/auth/register` - Register new user
-- `POST /api/v1/auth/jwt/login` - Login
-- `GET /api/v1/learning-paths` - Get learning paths
-- `POST /api/v1/learning-paths` - Create learning path
-- `GET /api/v1/concepts` - Get concepts
-- `GET /api/v1/user-knowledge` - Get user knowledge graph
+- **Gemini free tier** allows ~20 requests/day per model. The app handles rate limits gracefully with clear error messages.
+- Knowledge graph data is stored as `.ttl` (Turtle) files — no external graph database required.
+- Content discovery uses an in-memory vector store; indexed content is lost on server restart.
 
-## 🧪 Testing
+## License
 
-### Backend Tests
-```bash
-cd core-service
-pytest
-```
-
-### Frontend Tests
-```bash
-cd learner-web-app
-npm run test
-```
-
-## 📝 Development
-
-### Running Scripts
-The project includes helper scripts:
-
-```bash
-# Backend
-./scripts/run-core-service.sh
-
-# Frontend
-./scripts/run-learner-web-app.sh
-```
-
-### Code Style
-- Backend: Follow PEP 8
-- Frontend: ESLint + TypeScript strict mode
-
-## 🚢 Deployment
-
-### Backend
-- Set `APP_ENV=production`
-- Use PostgreSQL for production database
-- Set secure `SECRET_KEY`
-- Configure proper CORS origins
-
-### Frontend
-```bash
-npm run build
-# Deploy dist/ folder to your hosting service
-```
-
-## 📖 Documentation
-
-Additional documentation available in `/docs`:
-- Authentication integration guide
-- AI agent architecture
-- Knowledge graph schema
-
-## 🤝 Contributing
-
-This is a consolidated version of multiple development branches. The most feature-rich components from each version have been integrated.
-
-## 📄 License
-
-See LICENSE file for details.
-
-## 🆘 Support
-
-For issues or questions, check the documentation in `/docs` or the API documentation at `/docs` endpoint.
-
----
-
-**Built with ❤️ using FastAPI, React, and AI**
+This project is part of a Knowledge Graph & Computational Design Knowledge Engineering research project at TU Darmstadt.

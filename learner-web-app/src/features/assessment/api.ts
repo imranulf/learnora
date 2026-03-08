@@ -23,48 +23,7 @@ import type {
   MCQSaveResponse,
 } from './types';
 
-const API_BASE_URL = 'http://localhost:8000';
-const API_V1_PREFIX = '/api/v1';
-
-/**
- * Base fetch wrapper with auth and error handling
- */
-async function fetchAPI<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const token = localStorage.getItem('access_token');
-
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    // Handle different error formats
-    let errorMessage = `HTTP ${response.status}`;
-    if (error.error) {
-      errorMessage = error.error;
-    } else if (error.detail) {
-      // FastAPI validation errors come as array in detail
-      if (Array.isArray(error.detail)) {
-        errorMessage = error.detail.map((e: { msg?: string }) => e.msg || JSON.stringify(e)).join(', ');
-      } else {
-        errorMessage = error.detail;
-      }
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
-}
+import { fetchAPI, API_V1_PREFIX } from '../../services/apiClient';
 
 // ============================================================================
 // Assessment Session Management

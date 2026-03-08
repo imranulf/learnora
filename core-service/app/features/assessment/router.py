@@ -4,7 +4,7 @@ FastAPI router for Assessment and Dynamic Knowledge Evaluation endpoints.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 
 from app.database.session import get_db as get_async_session
@@ -136,7 +136,7 @@ async def create_assessment_item(
 
 @router.get("/items", response_model=List[ItemResponse])
 async def list_assessment_items(
-    skill: str = None,
+    skill: Optional[str] = None,
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -405,7 +405,7 @@ async def get_knowledge_states(
 
 @router.get("/learning-gaps", response_model=List[LearningGapResponse])
 async def get_learning_gaps(
-    assessment_id: int = None,
+    assessment_id: Optional[int] = None,
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -587,7 +587,7 @@ async def create_quiz(
 
 @router.get("/quizzes", response_model=List[QuizResponse])
 async def list_quizzes(
-    status_filter: str = None,
+    status_filter: Optional[str] = None,
     db: AsyncSession = Depends(get_async_session),
     current_user: User = Depends(get_current_user)
 ):

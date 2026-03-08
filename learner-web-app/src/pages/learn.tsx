@@ -41,11 +41,15 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
-import { deleteLearningPath, getAllLearningPaths, type LearningPathResponse } from '../services/learningPath';
+import { useLearningPaths, useDeleteLearningPath } from '../hooks/useApiQueries';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
+import type { LearningPathResponse } from '../services/learningPath';
+
+const PAGE_TITLE = 'Learn - Learnora';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -70,54 +74,41 @@ export default function LearnPage() {
   const { session, loading: sessionLoading } = useSession();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
-  const [paths, setPaths] = useState<LearningPathResponse[]>([]);
-  const [progress, setProgress] = useState<Record<string, PathProgress>>({});
-  const [dataLoading, setDataLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pathToDelete, setPathToDelete] = useState<LearningPathResponse | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const token = session?.access_token;
+  const { data: paths = [], isLoading: pathsLoading, refetch: refetchPaths } = useLearningPaths(token);
+  const deleteMutation = useDeleteLearningPath(token);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (sessionLoading) return;
-      if (!session?.access_token) {
-        setDataLoading(false);
-        return;
-      }
+  // Fetch progress for all paths
+  const allThreadIds = useMemo(
+    () => paths.map((p) => p.conversation_thread_id),
+    [paths],
+  );
 
-      try {
-        setDataLoading(true);
-        setError(null);
-
-        // Fetch learning paths
-        const pathsData = await getAllLearningPaths(session.access_token);
-        setPaths(pathsData);
-
-        // Fetch progress for each path
-        const progressMap: Record<string, PathProgress> = {};
-        for (const path of pathsData) {
-          try {
-            const pathProgress = await getPathProgress(
-              session.access_token,
-              path.conversation_thread_id
-            );
-            progressMap[path.conversation_thread_id] = pathProgress;
-          } catch {
-            // Progress might not exist yet
-          }
+  const { data: progress = {} } = useQuery<Record<string, PathProgress>>({
+    queryKey: ['learn-progress', ...allThreadIds],
+    queryFn: async () => {
+      if (!token || allThreadIds.length === 0) return {};
+      const progressMap: Record<string, PathProgress> = {};
+      for (const threadId of allThreadIds) {
+        try {
+          progressMap[threadId] = await getPathProgress(threadId, token);
+        } catch {
+          // Progress might not exist yet
         }
-        setProgress(progressMap);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load learning data');
-      } finally {
-        setDataLoading(false);
       }
-    };
+      return progressMap;
+    },
+    enabled: !!token && allThreadIds.length > 0,
+    staleTime: 30_000,
+  });
 
-    fetchData();
-  }, [session?.access_token, sessionLoading]);
+  useEffect(() => { document.title = PAGE_TITLE; }, []);
+
+  const fetchData = () => { refetchPaths(); };
 
   const handleCreatePath = () => {
     navigate('/learning-path');
@@ -128,25 +119,20 @@ export default function LearnPage() {
   };
 
   const handleDeleteClick = (e: React.MouseEvent, path: LearningPathResponse) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     setPathToDelete(path);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!pathToDelete || !session?.access_token) return;
+    if (!pathToDelete) return;
 
-    setDeleting(true);
     try {
-      await deleteLearningPath(pathToDelete.conversation_thread_id, session.access_token);
-      // Remove from local state
-      setPaths((prev) => prev.filter((p) => p.conversation_thread_id !== pathToDelete.conversation_thread_id));
+      await deleteMutation.mutateAsync(pathToDelete.conversation_thread_id);
       setDeleteDialogOpen(false);
       setPathToDelete(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete learning path');
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -155,7 +141,7 @@ export default function LearnPage() {
     setPathToDelete(null);
   };
 
-  if (sessionLoading || dataLoading) {
+  if (sessionLoading || pathsLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
         <CircularProgress />
@@ -179,7 +165,15 @@ export default function LearnPage() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" onClick={fetchData}>
+              Retry
+            </Button>
+          }
+        >
           {error}
         </Alert>
       )}
@@ -308,6 +302,7 @@ export default function LearnPage() {
                         <Tooltip title="Delete learning path">
                           <IconButton
                             size="small"
+                            aria-label={`Delete ${path.topic || 'learning path'}`}
                             onClick={(e) => handleDeleteClick(e, path)}
                             sx={{
                               position: 'absolute',
@@ -421,6 +416,7 @@ export default function LearnPage() {
                       <Tooltip title="Delete learning path">
                         <IconButton
                           size="small"
+                          aria-label={`Delete ${path.topic || 'learning path'}`}
                           onClick={(e) => handleDeleteClick(e, path)}
                           sx={{
                             position: 'absolute',
@@ -470,16 +466,16 @@ export default function LearnPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleDeleteCancel} disabled={deleting}>
+          <Button onClick={handleDeleteCancel} disabled={deleteMutation.isPending}>
             Cancel
           </Button>
           <Button
             onClick={handleDeleteConfirm}
             color="error"
             variant="contained"
-            disabled={deleting}
+            disabled={deleteMutation.isPending}
           >
-            {deleting ? 'Deleting...' : 'Delete'}
+            {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -4,9 +4,7 @@ import logging
 from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.features.users.users import current_active_user
 from app.features.users.models import User
 
@@ -39,7 +37,7 @@ def get_personalization_service() -> ContentPersonalizationService:
 async def personalize_content(
     request: PersonalizeRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
+
 ) -> PersonalizedContentSchema:
     """
     Personalize learning content for a specific user.
@@ -98,7 +96,7 @@ async def personalize_content(
 async def summarize_content(
     request: SummarizeRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
+
 ) -> ContentSummarySchema:
     """
     Generate a level-appropriate summary of content.
@@ -143,7 +141,7 @@ async def summarize_content(
 async def adapt_difficulty(
     request: AdaptDifficultyRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
+
 ) -> Dict[str, str]:
     """
     Adapt content difficulty from one level to another.
@@ -176,14 +174,14 @@ async def adapt_difficulty(
 @router.get("/stats")
 async def get_stats(
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
+
 ) -> Dict:
     """Get content personalization statistics."""
     service = get_personalization_service()
     
     return {
         "service_active": service is not None,
-        "model_name": "gemini-2.0-flash-exp",
+        "model_name": "gemini-2.5-flash",
         "supported_levels": ["beginner", "intermediate", "advanced", "expert"],
         "features": [
             "content_summarization",

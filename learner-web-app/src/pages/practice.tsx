@@ -37,7 +37,7 @@ import {
   Tabs,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   AssessmentPanel,
   AssessmentWizard,
@@ -99,9 +99,9 @@ export default function PracticePage() {
   const [quizResult, setQuizResult] = useState<QuizResultResponse | null>(null);
   const [creatingQuiz, setCreatingQuiz] = useState(false);
 
-  // Load data
-  useEffect(() => {
-    const fetchData = async () => {
+  useEffect(() => { document.title = 'Practice - Learnora'; }, []);
+
+  const fetchData = useCallback(async () => {
       if (sessionLoading) return;
       if (!session?.access_token) {
         setDataLoading(false);
@@ -124,10 +124,11 @@ export default function PracticePage() {
       } finally {
         setDataLoading(false);
       }
-    };
-
-    fetchData();
   }, [session?.access_token, sessionLoading]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleRefresh = async () => {
     const [assessmentData, quizData] = await Promise.all([
@@ -191,7 +192,16 @@ export default function PracticePage() {
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          onClose={() => setError(null)}
+          action={
+            <Button color="inherit" size="small" onClick={fetchData}>
+              Retry
+            </Button>
+          }
+        >
           {error}
         </Alert>
       )}

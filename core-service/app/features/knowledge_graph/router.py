@@ -1,10 +1,8 @@
 """API router for knowledge graph visualization."""
 
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import List, Optional, Literal
-from app.database import get_db
 from app.features.users.users import current_active_user
 from app.features.users.models import User
 from .service import KnowledgeGraphService
@@ -52,7 +50,6 @@ async def get_knowledge_graph(
     category: Optional[str] = None,
     mastery: Optional[str] = None,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Get the complete knowledge graph with user-specific mastery levels.
@@ -76,7 +73,6 @@ async def update_node_mastery(
     node_id: str,
     request: UpdateMasteryRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """
     Update the mastery level for a specific node.
@@ -107,7 +103,6 @@ async def update_node_mastery(
 @router.get("/categories")
 async def get_categories(
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """Get all available categories in the knowledge graph."""
     try:
@@ -120,7 +115,6 @@ async def get_categories(
 @router.get("/stats")
 async def get_graph_stats(
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ):
     """Get statistics about the user's knowledge graph."""
     try:

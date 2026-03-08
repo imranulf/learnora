@@ -10,15 +10,14 @@ from sqlalchemy import select, and_
 from datetime import datetime
 from typing import List, Dict, Optional
 from app.features.learning_path.progress_models import LearningPathProgress, ProgressStatus
-from app.features.users.knowledge.service import UserKnowledgeService
+from app.features.assessment.models import KnowledgeState
 
 
 class LearningPathProgressService:
     """Service for tracking and calculating learning path progress"""
-    
+
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.kg_service = UserKnowledgeService()  # Fixed: no db parameter needed
     
     async def initialize_path_progress(
         self, 
@@ -108,8 +107,8 @@ class LearningPathProgressService:
             )
             self.db.add(progress)
         
-        # Get mastery from knowledge graph
-        kg_mastery = self._get_concept_mastery_from_kg(user_id, concept_name)
+        # Get mastery from KnowledgeState (updated by quizzes via BKT)
+        kg_mastery = await self._get_concept_mastery_from_kg(user_id, concept_name)
         progress.mastery_level = kg_mastery
         
         # Update statistics
@@ -136,29 +135,37 @@ class LearningPathProgressService:
         
         return progress
     
-    def _get_concept_mastery_from_kg(self, user_id: int, concept_name: str) -> float:
+    async def _get_concept_mastery_from_kg(self, user_id: int, concept_name: str) -> float:
         """
-        Get mastery level for a concept from the knowledge graph.
-        
-        Args:
-            user_id: User ID
-            concept_name: Concept name to look up
-            
-        Returns:
-            Mastery level (0.0 to 1.0)
+        Get mastery level for a concept from the KnowledgeState table.
+        Quiz results update KnowledgeState via BKT; we read from there.
+
+        The skill column stores concept_id (e.g. "software_development_lifecycle_(sdlc)").
+        The concept_name is Title Case (e.g. "Software Development Lifecycle (Sdlc)").
+        We normalize both to lowercase for matching.
         """
         try:
-            # Query knowledge graph for user's mastery of this concept
-            knowledge_states = self.kg_service.get_knowledge_state(user_id)
-            
-            # Find matching concept (case-insensitive)
-            for state in knowledge_states:
-                if state.concept_name.lower() == concept_name.lower():
-                    return state.mastery_level
-            
-            return 0.0  # Not in KG yet
+            concept_id = concept_name.lower().replace(" ", "_").replace("-", "_")
+
+            result = await self.db.execute(
+                select(KnowledgeState)
+                .where(
+                    and_(
+                        KnowledgeState.user_id == user_id,
+                        KnowledgeState.skill == concept_id,
+                    )
+                )
+                .order_by(KnowledgeState.last_updated.desc())
+                .limit(1)
+            )
+            state = result.scalar_one_or_none()
+
+            if state:
+                return state.mastery_probability
+
+            return 0.0
         except Exception as e:
-            print(f"Error getting mastery from KG: {e}")
+            print(f"Error getting mastery from KnowledgeState: {e}")
             return 0.0
     
     async def get_path_progress(self, user_id: int, thread_id: str) -> Dict:
@@ -275,7 +282,7 @@ class LearningPathProgressService:
         
         for progress in progress_records:
             old_mastery = progress.mastery_level
-            new_mastery = self._get_concept_mastery_from_kg(user_id, progress.concept_name)
+            new_mastery = await self._get_concept_mastery_from_kg(user_id, progress.concept_name)
             
             if abs(new_mastery - old_mastery) > 0.01:  # Only update if changed significantly
                 progress.mastery_level = new_mastery

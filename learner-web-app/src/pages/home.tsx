@@ -36,69 +36,53 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { useSession } from '../hooks/useSession';
-import { getDashboardStats, type DashboardStats } from '../services/dashboard';
-import { getAllLearningPaths, type LearningPathResponse } from '../services/learningPath';
+import { useDashboardStats, useLearningPaths } from '../hooks/useApiQueries';
 import { getPathProgress, type PathProgress } from '../services/learningPathProgress';
+
+const PAGE_TITLE = 'Home - Learnora';
 
 export default function HomePage() {
   const { session, loading: sessionLoading } = useSession();
   const navigate = useNavigate();
   const userName = session?.user?.first_name || session?.user?.name || session?.user?.email?.split('@')[0] || 'Learner';
 
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [paths, setPaths] = useState<LearningPathResponse[]>([]);
-  const [progress, setProgress] = useState<Record<string, PathProgress>>({});
-  const [dataLoading, setDataLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const token = session?.access_token;
+  const { data: stats = null, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useDashboardStats(token);
+  const { data: paths = [], isLoading: pathsLoading, error: pathsError, refetch: refetchPaths } = useLearningPaths(token);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (sessionLoading) return; // Wait for session to load
+  // Fetch progress for the first 3 paths
+  const top3ThreadIds = useMemo(
+    () => paths.slice(0, 3).map((p) => p.conversation_thread_id),
+    [paths],
+  );
 
-      if (!session?.access_token) {
-        setDataLoading(false);
-        return;
-      }
-
-      try {
-        setDataLoading(true);
-        setError(null);
-
-        // Fetch all data in parallel
-        const [statsData, pathsData] = await Promise.all([
-          getDashboardStats(session.access_token).catch(() => null),
-          getAllLearningPaths(session.access_token).catch(() => []),
-        ]);
-
-        setStats(statsData);
-        setPaths(pathsData);
-
-        // Fetch progress for each path
-        if (pathsData.length > 0) {
-          const progressMap: Record<string, PathProgress> = {};
-          for (const path of pathsData.slice(0, 3)) {
-            try {
-              const pathProgress = await getPathProgress(session.access_token, path.conversation_thread_id);
-              progressMap[path.conversation_thread_id] = pathProgress;
-            } catch {
-              // Progress might not exist yet
-            }
-          }
-          setProgress(progressMap);
+  const { data: progress = {} } = useQuery<Record<string, PathProgress>>({
+    queryKey: ['home-progress', ...top3ThreadIds],
+    queryFn: async () => {
+      if (!token || top3ThreadIds.length === 0) return {};
+      const progressMap: Record<string, PathProgress> = {};
+      for (const threadId of top3ThreadIds) {
+        try {
+          progressMap[threadId] = await getPathProgress(threadId, token);
+        } catch {
+          // Progress might not exist yet
         }
-      } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
-      } finally {
-        setDataLoading(false);
       }
-    };
+      return progressMap;
+    },
+    enabled: !!token && top3ThreadIds.length > 0,
+    staleTime: 30_000,
+  });
 
-    fetchData();
-  }, [session?.access_token, sessionLoading]);
+  const dataLoading = statsLoading || pathsLoading;
+  const error = statsError || pathsError;
+  const fetchData = () => { refetchStats(); refetchPaths(); };
+
+  useEffect(() => { document.title = PAGE_TITLE; }, []);
 
   // Determine what to suggest next
   const getNextSuggestion = () => {
@@ -149,8 +133,16 @@ export default function HomePage() {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error" icon={<ErrorOutline />}>
-          {error}
+        <Alert
+          severity="error"
+          icon={<ErrorOutline />}
+          action={
+            <Button color="inherit" size="small" onClick={fetchData}>
+              Retry
+            </Button>
+          }
+        >
+          {error instanceof Error ? error.message : 'Failed to load dashboard'}
         </Alert>
       </Box>
     );
@@ -504,7 +496,7 @@ export default function HomePage() {
           </Paper>
 
           {/* Quick Tips */}
-          <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'grey.50' }}>
+          <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
               Learning Tips
             </Typography>

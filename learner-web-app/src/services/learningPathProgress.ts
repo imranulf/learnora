@@ -1,12 +1,10 @@
 /**
  * Learning Path Progress Service
- * 
+ *
  * API client for tracking and fetching learning path progress.
  * Syncs with backend progress tracking system.
  */
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const API_V1_PREFIX = '/api/v1';
+import { fetchAPI, API_V1_PREFIX } from './apiClient';
 
 export interface ConceptProgress {
     name: string;
@@ -41,18 +39,14 @@ export async function getPathProgress(
     threadId: string,
     accessToken: string
 ): Promise<PathProgress> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/progress/${threadId}`,
-        {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
-        }
-    );
-
-    if (!response.ok) {
-        if (response.status === 404) {
-            // Return empty progress if not found
+    try {
+        return await fetchAPI<PathProgress>(
+            `${API_V1_PREFIX}/learning-paths/progress/${threadId}`,
+            { headers: { 'Authorization': `Bearer ${accessToken}` } }
+        );
+    } catch (err) {
+        // Return empty progress on 404 (not initialized yet)
+        if (err instanceof Error && 'status' in err && (err as { status: number }).status === 404) {
             return {
                 total_concepts: 0,
                 completed_concepts: 0,
@@ -60,13 +54,11 @@ export async function getPathProgress(
                 overall_progress: 0,
                 average_mastery: 0,
                 total_time_spent: 0,
-                concepts: []
+                concepts: [],
             };
         }
-        throw new Error('Failed to fetch path progress');
+        throw err;
     }
-
-    return response.json();
 }
 
 /**
@@ -77,23 +69,14 @@ export async function updateConceptProgress(
     request: UpdateProgressRequest,
     accessToken: string
 ): Promise<ConceptProgress> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/progress/${threadId}/update`,
+    return fetchAPI<ConceptProgress>(
+        `${API_V1_PREFIX}/learning-paths/progress/${threadId}/update`,
         {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`,
-            },
+            headers: { 'Authorization': `Bearer ${accessToken}` },
             body: JSON.stringify(request),
         }
     );
-
-    if (!response.ok) {
-        throw new Error('Failed to update concept progress');
-    }
-
-    return response.json();
 }
 
 /**
@@ -103,20 +86,10 @@ export async function getNextConcept(
     threadId: string,
     accessToken: string
 ): Promise<{ next_concept: string | null; message?: string }> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/progress/${threadId}/next-concept`,
-        {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
-        }
+    return fetchAPI<{ next_concept: string | null; message?: string }>(
+        `${API_V1_PREFIX}/learning-paths/progress/${threadId}/next-concept`,
+        { headers: { 'Authorization': `Bearer ${accessToken}` } }
     );
-
-    if (!response.ok) {
-        throw new Error('Failed to get next concept');
-    }
-
-    return response.json();
 }
 
 /**
@@ -126,21 +99,13 @@ export async function syncProgressWithKG(
     threadId: string,
     accessToken: string
 ): Promise<{ updated_concepts: number; message: string; progress: PathProgress }> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/progress/${threadId}/sync`,
+    return fetchAPI<{ updated_concepts: number; message: string; progress: PathProgress }>(
+        `${API_V1_PREFIX}/learning-paths/progress/${threadId}/sync`,
         {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
+            headers: { 'Authorization': `Bearer ${accessToken}` },
         }
     );
-
-    if (!response.ok) {
-        throw new Error('Failed to sync progress');
-    }
-
-    return response.json();
 }
 
 /**
@@ -151,21 +116,12 @@ export async function initializePathProgress(
     conceptNames: string[],
     accessToken: string
 ): Promise<{ initialized_concepts: number; message: string }> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/learning-paths/progress/${threadId}/initialize`,
+    return fetchAPI<{ initialized_concepts: number; message: string }>(
+        `${API_V1_PREFIX}/learning-paths/progress/${threadId}/initialize`,
         {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`,
-            },
+            headers: { 'Authorization': `Bearer ${accessToken}` },
             body: JSON.stringify(conceptNames),
         }
     );
-
-    if (!response.ok) {
-        throw new Error('Failed to initialize progress');
-    }
-
-    return response.json();
 }

@@ -39,7 +39,7 @@ const CONTENT_TYPE_ICONS: Record<string, string> = {
 export default function ContentCard({ result, onSelect }: ContentCardProps) {
     const { session } = useSession();
     const { content, relevance_score, personalized_summary, tldr, key_takeaways, highlights, estimated_time } = result;
-    const difficultyColor = DIFFICULTY_COLORS[content.difficulty as keyof typeof DIFFICULTY_COLORS] || { bgcolor: 'grey.200', color: 'grey.800' };
+    const difficultyColor = DIFFICULTY_COLORS[content.difficulty as keyof typeof DIFFICULTY_COLORS] || { bgcolor: 'action.hover', color: 'text.secondary' };
     const icon = CONTENT_TYPE_ICONS[content.content_type.toLowerCase()] || CONTENT_TYPE_ICONS.default;
     const [clickTime] = useState(Date.now());
     const [showTracked, setShowTracked] = useState(false);

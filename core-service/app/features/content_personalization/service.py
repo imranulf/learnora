@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class ContentPersonalizationService:
     """Service for personalizing learning content based on user preferences and level."""
     
-    def __init__(self, model_name: str = "gemini-2.0-flash-exp"):
+    def __init__(self, model_name: str = "gemini-2.5-flash"):
         """Initialize the personalization service.
         
         Args:
@@ -307,23 +307,20 @@ Provide only the rewritten text, no additional commentary.""")
     def _generate_tldr(self, content: LearningContent, user_level: str) -> str:
         """Generate a very brief TL;DR summary (1-2 sentences)."""
         prompt = ChatPromptTemplate.from_messages([
-            SystemMessage(content="You are an expert at creating ultra-concise summaries."),
-            HumanMessage(content="""Create a 1-2 sentence TL;DR for this content suitable for a {user_level} learner:
+            SystemMessage(content="You create ultra-concise 1-2 sentence summaries. Output ONLY the summary text, nothing else. Never use placeholder syntax like curly braces."),
+            HumanMessage(content="""Write a 1-2 sentence TL;DR for a {user_level} learner about this resource:
 
-Title: {title}
-Description: {description}
-
-TL;DR:""")
+"{title}" — {description}""")
         ])
-        
+
         response = self.model.invoke(
             prompt.format_messages(
                 user_level=user_level,
                 title=content.title,
-                description=content.description[:500],  # Limit for speed
+                description=content.description[:500],
             )
         )
-        
+
         return response.content.strip()
     
     def _adjust_time_for_level(

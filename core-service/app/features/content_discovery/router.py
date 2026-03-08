@@ -3,10 +3,6 @@
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
-
-from app.database import get_db
 from app.features.users.users import current_active_user
 from app.features.users.models import User
 from app.features.users.preference_service import PreferenceService
@@ -48,11 +44,10 @@ def get_discovery_service() -> LearnoraContentDiscovery:
 async def search_content(
     request: SearchRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """
     Search for learning content with personalization and NLP.
-    
+
     - **query**: Natural language search query
     - **strategy**: Search strategy (bm25, dense, or hybrid)
     - **top_k**: Number of results to return
@@ -61,21 +56,11 @@ async def search_content(
     - **max_summary_words**: Maximum words for personalized summaries
     """
     service = get_discovery_service()
-    
-    # Build user profile from stored preferences (evolving system!)
-    # Use the sync engine from the async engine
-    from sqlalchemy.orm import Session as SyncSession
-    from sqlalchemy import create_engine
-    from app.config import settings
-    
-    # Create a sync engine for preference service
-    sync_engine = create_engine(
-        settings.DATABASE_URL,
-        echo=False,
-        future=True,
-    )
-    
-    with SyncSession(sync_engine) as sync_db:
+
+    # Build user profile from stored preferences
+    from app.database.session import SyncSessionLocal
+
+    with SyncSessionLocal() as sync_db:
         pref_service = PreferenceService(sync_db)
         user_profile = pref_service.build_user_profile(user.id)
     
@@ -103,13 +88,27 @@ async def search_content(
                     if not user_level or user_level not in ['beginner', 'intermediate', 'advanced', 'expert']:
                         user_level = 'intermediate'
                     
-                    # Get content from result (it's a dict)
-                    content = result['content']
-                    content_type = content.get('content_type', 'article')
-                    
+                    # Convert content dict back to LearningContent dataclass
+                    from datetime import datetime
+                    content_dict = result['content']
+                    content_obj = LearningContent(
+                        id=content_dict.get('id', ''),
+                        title=content_dict.get('title', ''),
+                        content_type=content_dict.get('content_type', 'article'),
+                        source=content_dict.get('source', ''),
+                        url=content_dict.get('url', ''),
+                        description=content_dict.get('description', ''),
+                        difficulty=content_dict.get('difficulty', 'intermediate'),
+                        duration_minutes=content_dict.get('duration_minutes', 10),
+                        tags=content_dict.get('tags', []),
+                        prerequisites=content_dict.get('prerequisites', []),
+                        metadata=content_dict.get('metadata', {}),
+                    )
+                    content_type = content_obj.content_type
+
                     # Personalize the content
                     personalized = personalization_service.personalize_content(
-                        content=content,
+                        content=content_obj,
                         user_level=user_level,
                         max_summary_words=request.max_summary_words,
                         user_time_budget=user_profile.available_time_daily,
@@ -150,7 +149,6 @@ async def search_content(
 async def crawl_urls(
     request: CrawlRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """
     Crawl URLs and add discovered content to the index.
@@ -183,7 +181,6 @@ async def crawl_urls(
 async def index_content(
     request: IndexContentRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """
     Manually index learning content.
@@ -212,7 +209,6 @@ async def index_content(
 @router.get("/stats")
 async def get_stats(
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """Get content discovery statistics."""
     service = get_discovery_service()
@@ -230,7 +226,6 @@ async def get_stats(
 async def enable_auto_discovery(
     enabled: bool = True,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """Enable or disable automatic content discovery."""
     service = get_discovery_service()
@@ -245,7 +240,6 @@ async def enable_auto_discovery(
 async def set_custom_keywords(
     request: SetKeywordsRequest,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """
     Set custom keywords for dynamic tag extraction during crawling.
@@ -272,7 +266,6 @@ async def set_custom_keywords(
 async def get_content(
     content_id: str,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> LearningContentSchema:
     """Get a specific content item by ID."""
     service = get_discovery_service()
@@ -289,7 +282,6 @@ async def list_contents(
     skip: int = 0,
     limit: int = 100,
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
 ) -> List[LearningContentSchema]:
     """List all indexed content items."""
     service = get_discovery_service()

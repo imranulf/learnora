@@ -105,6 +105,8 @@ export default function ProfilePage() {
   const [knowledgeItems, setKnowledgeItems] = useState<UserKnowledgeItem[]>([]);
   const [knowledgeSummary, setKnowledgeSummary] = useState<UserKnowledgeSummary | null>(null);
 
+  useEffect(() => { document.title = 'Profile - Learnora'; }, []);
+
   const loadData = useCallback(async () => {
     if (sessionLoading) return;
     if (!session?.access_token) {

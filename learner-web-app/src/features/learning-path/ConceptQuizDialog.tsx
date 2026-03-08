@@ -24,6 +24,8 @@ import {
     Typography,
 } from '@mui/material';
 import { useState } from 'react';
+import { useSession } from '../../hooks/useSession';
+import { syncProgressWithKG } from '../../services/learningPathProgress';
 import { createQuiz, generateAndSaveMCQs } from '../assessment/api';
 import type { QuizResponse, QuizResultResponse } from '../assessment/types';
 import QuizPlayer from '../assessment/QuizPlayer';
@@ -35,6 +37,7 @@ interface ConceptQuizDialogProps {
     conceptName: string;
     conceptId: string;
     learningPathThreadId?: string;
+    onQuizComplete?: () => void;
 }
 
 type QuizStep = 'setup' | 'generating' | 'playing' | 'results';
@@ -44,11 +47,14 @@ export default function ConceptQuizDialog({
     onClose,
     conceptName,
     conceptId,
+    learningPathThreadId,
+    onQuizComplete,
 }: ConceptQuizDialogProps) {
     const [step, setStep] = useState<QuizStep>('setup');
     const [quiz, setQuiz] = useState<QuizResponse | null>(null);
     const [result, setResult] = useState<QuizResultResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const { session } = useSession();
     const [difficulty, setDifficulty] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
 
     const handleStartQuiz = async () => {
@@ -86,9 +92,20 @@ export default function ConceptQuizDialog({
         }
     };
 
-    const handleQuizComplete = (quizResult: QuizResultResponse) => {
+    const handleQuizComplete = async (quizResult: QuizResultResponse) => {
         setResult(quizResult);
         setStep('results');
+
+        // Sync progress with KG after quiz completion
+        if (learningPathThreadId && session?.access_token) {
+            try {
+                await syncProgressWithKG(learningPathThreadId, session.access_token);
+            } catch (err) {
+                console.error('Failed to sync progress after quiz:', err);
+            }
+        }
+        // Always notify parent to refresh graph, even if sync failed
+        onQuizComplete?.();
     };
 
     const handleQuizCancel = () => {
@@ -170,7 +187,7 @@ export default function ConceptQuizDialog({
                             </Stack>
                         </Box>
 
-                        <Paper elevation={0} sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                        <Paper elevation={0} sx={{ p: 2, bgcolor: (theme) => theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50', borderRadius: 2 }}>
                             <Typography variant="body2" color="text.secondary">
                                 This quiz will generate 5 multiple-choice questions about{' '}
                                 <strong>{conceptName}</strong> at the <strong>{difficulty}</strong> level.

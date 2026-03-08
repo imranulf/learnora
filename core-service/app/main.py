@@ -19,6 +19,7 @@ from app.features.content_discovery.router import router as content_discovery_ro
 from app.features.content_personalization.router import router as content_personalization_router
 from app.features.knowledge_graph.router import router as knowledge_graph_router
 from app.features.dashboard.router import router as dashboard_router
+from app.features.agent.router import router as agent_router
 from app.database import init_db
 
 # Configure logging
@@ -144,6 +145,13 @@ app.include_router(
     dashboard_router,
     prefix=settings.API_V1_PREFIX,
     tags=["dashboard"]
+)
+
+# Register agent/chat router
+app.include_router(
+    agent_router,
+    prefix=f"{settings.API_V1_PREFIX}/agent",
+    tags=["agent"]
 )
 
 

@@ -36,7 +36,7 @@ const STATUS_ICONS = {
 const STATUS_COLORS = {
     mastered: { bgcolor: 'success.light', color: 'success.dark' },
     in_progress: { bgcolor: 'warning.light', color: 'warning.dark' },
-    not_started: { bgcolor: 'grey.200', color: 'text.secondary' },
+    not_started: { bgcolor: 'action.hover', color: 'text.secondary' },
 };
 
 const STATUS_LABELS = {
@@ -117,7 +117,7 @@ export default function LearningPathProgress({ concepts, overall_progress, threa
                         sx={{
                             height: 10,
                             borderRadius: 1,
-                            bgcolor: 'grey.200',
+                            bgcolor: 'action.hover',
                             '& .MuiLinearProgress-bar': {
                                 bgcolor: overall_progress === 100 ? 'success.main' : 'primary.main',
                                 borderRadius: 1
@@ -175,7 +175,7 @@ export default function LearningPathProgress({ concepts, overall_progress, threa
                                 sx={{
                                     height: 6,
                                     borderRadius: 1,
-                                    bgcolor: 'grey.200',
+                                    bgcolor: 'action.hover',
                                     '& .MuiLinearProgress-bar': {
                                         bgcolor: concept.status === 'mastered' ? 'success.main' : 'primary.main',
                                         borderRadius: 1

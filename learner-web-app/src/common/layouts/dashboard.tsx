@@ -6,6 +6,7 @@ import { useSession } from '../../hooks/useSession';
 import { Stack, Tooltip, IconButton, TextField } from '@mui/material';
 import { Account } from '@toolpad/core';
 import SearchIcon from '@mui/icons-material/Search';
+import { FloatingChat } from '../../features/agent/FloatingChat';
 
 function ToolbarActionsSearch() {
   return (
@@ -72,6 +73,7 @@ export default function Layout() {
       <PageContainer>
         <Outlet />
       </PageContainer>
+      <FloatingChat />
     </DashboardLayout>
   );
 }

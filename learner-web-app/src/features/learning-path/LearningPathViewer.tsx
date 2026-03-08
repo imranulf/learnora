@@ -12,21 +12,19 @@ import {
     Button,
     Chip,
     CircularProgress,
-    Drawer,
     FormControl,
     IconButton,
     InputLabel,
-    List,
-    ListItem,
-    ListItemText,
     MenuItem,
+    Paper,
     Select,
     Typography,
+    Tooltip,
     useTheme,
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { DataSet } from 'vis-data';
 import { Network } from 'vis-network/standalone';
 import { useSession } from '../../hooks/useSession';
@@ -37,9 +35,8 @@ import {
     type LearningPathKGResponse,
     type LearningPathResponse,
 } from '../../services/learningPath';
-import { getPathProgress, type PathProgress } from '../../services/learningPathProgress';
+import { getPathProgress, initializePathProgress, syncProgressWithKG, type PathProgress } from '../../services/learningPathProgress';
 import LearningPathCreationWizard from './LearningPathCreationWizard';
-import LearningPathProgress from './LearningPathProgress';
 import ConceptQuizDialog from './ConceptQuizDialog';
 
 
@@ -49,20 +46,10 @@ const MASTERY_COLORS = {
         border: '#667eea',
         text: '#374151',
     },
-    beginner: {
+    in_progress: {
         background: 'linear-gradient(135deg, #fff6e5 0%, #ffe4b8 100%)',
         border: '#f59e0b',
         text: '#92400e',
-    },
-    intermediate: {
-        background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
-        border: '#0ea5e9',
-        text: '#075985',
-    },
-    advanced: {
-        background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-        border: '#22c55e',
-        text: '#166534',
     },
     mastered: {
         background: 'linear-gradient(135deg, #d1fae5 0%, #6ee7b7 100%)',
@@ -71,14 +58,6 @@ const MASTERY_COLORS = {
     },
 };
 
-const NODE_COLORS = [
-    { bg: '#667eea', border: '#5a67d8', highlight: '#7c3aed' },
-    { bg: '#f093fb', border: '#ec4899', highlight: '#f472b6' },
-    { bg: '#4facfe', border: '#2563eb', highlight: '#3b82f6' },
-    { bg: '#43e97b', border: '#22c55e', highlight: '#4ade80' },
-    { bg: '#fa709a', border: '#e11d48', highlight: '#fb7185' },
-    { bg: '#fee140', border: '#eab308', highlight: '#facc15' },
-];
 
 type LayoutDirection = 'horizontal' | 'vertical';
 type NodeColor = keyof typeof MASTERY_COLORS;
@@ -101,12 +80,14 @@ const formatConceptName = (name: string): string => {
 export default function LearningPathViewer() {
     const { session } = useSession();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const theme = useTheme();
     const networkContainer = useRef<HTMLDivElement>(null);
     const networkInstance = useRef<Network | null>(null);
 
+    const threadFromUrl = searchParams.get('thread') || '';
     const [learningPaths, setLearningPaths] = useState<LearningPathResponse[]>([]);
-    const [selectedPathId, setSelectedPathId] = useState<string>('');
+    const [selectedPathId, setSelectedPathId] = useState<string>(threadFromUrl);
     const [graphData, setGraphData] = useState<LearningPathKGResponse | null>(null);
     const [progressData, setProgressData] = useState<PathProgress | null>(null);
     const [selectedNode, setSelectedNode] = useState<DetailPanelData | null>(null);
@@ -128,12 +109,27 @@ export default function LearningPathViewer() {
             const data = await getLearningPathKG(threadId, session.access_token);
             setGraphData(data);
 
-            // Load progress data
+            // Load progress data — auto-initialize if none exists, then sync with KG
             try {
-                const progress = await getPathProgress(threadId, session.access_token);
+                let progress = await getPathProgress(threadId, session.access_token);
+
+                if (progress.concepts.length === 0 && data.concepts.length > 0) {
+                    // Progress not initialized yet — create records using concept labels
+                    const conceptNames = data.concepts.map((c) => c.label);
+                    await initializePathProgress(threadId, conceptNames, session.access_token);
+                }
+
+                // Always sync with KnowledgeState so quiz results reflect on nodes
+                try {
+                    const syncResult = await syncProgressWithKG(threadId, session.access_token);
+                    progress = syncResult.progress;
+                } catch {
+                    // If sync fails, fall back to regular progress fetch
+                    progress = await getPathProgress(threadId, session.access_token);
+                }
+
                 setProgressData(progress);
             } catch (progressErr) {
-                // Progress may not exist yet for new paths - that's okay
                 console.log('No progress data yet:', progressErr);
                 setProgressData(null);
             }
@@ -155,15 +151,19 @@ export default function LearningPathViewer() {
             const paths = await getAllLearningPaths(session.access_token);
             setLearningPaths(paths);
             if (paths.length > 0 && !selectedPathId) {
-                setSelectedPathId(paths[0].conversation_thread_id);
-                await loadGraphData(paths[0].conversation_thread_id);
+                // Use thread from URL if available, otherwise pick first path
+                const targetThread = threadFromUrl && paths.some(p => p.conversation_thread_id === threadFromUrl)
+                    ? threadFromUrl
+                    : paths[0].conversation_thread_id;
+                setSelectedPathId(targetThread);
+                await loadGraphData(targetThread);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load learning paths');
         } finally {
             setLoading(false);
         }
-    }, [session?.access_token, selectedPathId, loadGraphData]);
+    }, [session?.access_token, selectedPathId, loadGraphData, threadFromUrl]);
 
     const handlePathChange = useCallback((threadId: string) => {
         setSelectedPathId(threadId);
@@ -175,52 +175,132 @@ export default function LearningPathViewer() {
         fetchLearningPaths();
     }, [fetchLearningPaths]);
 
+    // Helper: get mastery level for a concept from progress data
+    const getMasteryLevel = useCallback((conceptId: string): NodeColor => {
+        if (!progressData?.concepts) return 'not_started';
+        const conceptName = formatConceptName(conceptId);
+        const progress = progressData.concepts.find(
+            (c) => c.name === conceptName || c.name.toLowerCase() === conceptId.replace(/_/g, ' ')
+        );
+        if (!progress) return 'not_started';
+        if (progress.status === 'mastered') return 'mastered';
+        if (progress.status === 'in_progress') {
+            return 'in_progress';
+        }
+        return 'not_started';
+    }, [progressData]);
+
     const initializeNetwork = useCallback(() => {
         if (!graphData || !networkContainer.current) return;
 
-        const nodes = new DataSet(
-            graphData.concepts.map((concept: ConceptInfo, index: number) => {
-                const colorScheme = NODE_COLORS[index % NODE_COLORS.length];
-                return {
-                    id: concept.id,
-                    label: concept.label,
-                    color: {
-                        background: colorScheme.bg,
-                        border: colorScheme.border,
-                        highlight: {
-                            background: colorScheme.highlight,
-                            border: colorScheme.border,
-                        },
-                        hover: {
-                            background: colorScheme.highlight,
-                            border: colorScheme.border,
-                        },
-                    },
-                    shape: 'box',
-                    font: {
-                        size: 14,
-                        color: '#ffffff',
-                        face: 'Inter, system-ui, sans-serif',
-                        bold: true,
-                    },
-                    margin: { top: 15, right: 20, bottom: 15, left: 20 },
-                    borderWidth: 3,
-                    borderWidthSelected: 4,
-                    shadow: {
-                        enabled: true,
-                        color: 'rgba(0,0,0,0.2)',
-                        size: 10,
-                        x: 3,
-                        y: 3,
-                    },
-                    shapeProperties: {
-                        borderRadius: 12,
-                    },
-                };
-            })
+        // Identify start nodes (no prerequisites) and leaf nodes (not a prerequisite of anything)
+        const allPrereqIds = new Set(graphData.concepts.flatMap((c) => c.prerequisites));
+        const startNodeIds = new Set(
+            graphData.concepts.filter((c) => c.prerequisites.length === 0).map((c) => c.id)
+        );
+        const leafNodeIds = new Set(
+            graphData.concepts.filter((c) => !allPrereqIds.has(c.id)).map((c) => c.id)
         );
 
-        const edgesList = graphData.concepts.flatMap((concept: ConceptInfo) =>
+        const conceptNodes = graphData.concepts.map((concept: ConceptInfo) => {
+            const mastery = getMasteryLevel(concept.id);
+            const hasMastery = mastery !== 'not_started';
+            const masteryColor = MASTERY_COLORS[mastery];
+
+            const isStart = startNodeIds.has(concept.id);
+            const isLeaf = leafNodeIds.has(concept.id);
+
+            // Color priority: mastery > start > leaf > not_started
+            let bg: string, border: string, highlight: string;
+            if (hasMastery) {
+                bg = masteryColor.border;
+                border = masteryColor.border;
+                highlight = masteryColor.border;
+            } else if (isStart) {
+                bg = '#0d9488';
+                border = '#0f766e';
+                highlight = '#14b8a6';
+            } else if (isLeaf) {
+                bg = '#8b5cf6';
+                border = '#7c3aed';
+                highlight = '#a78bfa';
+            } else {
+                // Not started — consistent neutral blue matching legend
+                bg = '#667eea';
+                border = '#5a67d8';
+                highlight = '#7c3aed';
+            }
+
+            return {
+                id: concept.id,
+                label: isStart ? `▶  ${concept.label}` : concept.label,
+                color: {
+                    background: bg,
+                    border: border,
+                    highlight: { background: highlight, border: border },
+                    hover: { background: highlight, border: border },
+                },
+                shape: 'box',
+                font: {
+                    size: 14,
+                    color: '#ffffff',
+                    face: 'Inter, system-ui, sans-serif',
+                    bold: true,
+                },
+                widthConstraint: { minimum: 140, maximum: 240 },
+                margin: { top: 14, right: 18, bottom: 14, left: 18 },
+                borderWidth: isStart || isLeaf ? 3 : 2,
+                borderWidthSelected: 4,
+                shadow: {
+                    enabled: true,
+                    color: isStart ? 'rgba(13,148,136,0.3)' : isLeaf ? 'rgba(139,92,246,0.3)' : 'rgba(0,0,0,0.15)',
+                    size: isStart || isLeaf ? 12 : 8,
+                    x: 2,
+                    y: 2,
+                },
+                shapeProperties: {
+                    borderRadius: 10,
+                },
+            };
+        });
+
+        // Add a Goal node at the end
+        const goalNode = {
+            id: '__goal__',
+            label: '🏆  Goal Complete',
+            color: {
+                background: '#d97706',
+                border: '#b45309',
+                highlight: { background: '#f59e0b', border: '#b45309' },
+                hover: { background: '#f59e0b', border: '#b45309' },
+            },
+            shape: 'box',
+            font: {
+                size: 15,
+                color: '#ffffff',
+                face: 'Inter, system-ui, sans-serif',
+                bold: true,
+            },
+            widthConstraint: { minimum: 160, maximum: 240 },
+            margin: { top: 16, right: 22, bottom: 16, left: 22 },
+            borderWidth: 3,
+            borderWidthSelected: 4,
+            shadow: {
+                enabled: true,
+                color: 'rgba(217,119,6,0.4)',
+                size: 14,
+                x: 2,
+                y: 2,
+            },
+            shapeProperties: {
+                borderRadius: 14,
+            },
+        };
+
+        const nodes = new DataSet([...conceptNodes, goalNode]);
+
+        // Build edges: concept prerequisites + leaf nodes → goal
+        const conceptEdges = graphData.concepts.flatMap((concept: ConceptInfo) =>
             concept.prerequisites.map((prereq) => ({
                 id: `${prereq}-${concept.id}`,
                 from: prereq,
@@ -240,14 +320,43 @@ export default function LearningPathViewer() {
                 width: 2,
                 smooth: {
                     enabled: true,
-                    type: 'cubicBezier',
-                    forceDirection: layoutDirection === 'horizontal' ? 'horizontal' : 'vertical',
-                    roundness: 0.5,
+                    type: 'curvedCCW',
+                    roundness: 0.15,
                 },
                 hoverWidth: 3,
                 selectionWidth: 3,
             }))
         );
+
+        // Edges from leaf nodes to goal
+        const goalEdges = Array.from(leafNodeIds).map((leafId) => ({
+            id: `${leafId}-__goal__`,
+            from: leafId,
+            to: '__goal__',
+            arrows: {
+                to: {
+                    enabled: true,
+                    scaleFactor: 0.8,
+                    type: 'arrow',
+                },
+            },
+            color: {
+                color: '#a78bfa',
+                highlight: '#7c3aed',
+                hover: '#7c3aed',
+            },
+            width: 2,
+            dashes: [8, 4] as number[],
+            smooth: {
+                enabled: true,
+                type: 'curvedCCW',
+                roundness: 0.15,
+            },
+            hoverWidth: 3,
+            selectionWidth: 3,
+        }));
+
+        const edgesList = [...conceptEdges, ...goalEdges];
 
         const edges = new DataSet(edgesList as never[]);
         const data = { nodes: nodes as never, edges: edges as never };
@@ -258,16 +367,32 @@ export default function LearningPathViewer() {
                     enabled: true,
                     direction: layoutDirection === 'horizontal' ? 'LR' : 'UD',
                     sortMethod: 'directed',
-                    nodeSpacing: 220,
-                    levelSeparation: 280,
-                    treeSpacing: 200,
+                    shakeTowards: 'roots',
+                    nodeSpacing: 180,
+                    levelSeparation: 220,
+                    treeSpacing: 150,
                     blockShifting: true,
                     edgeMinimization: true,
                     parentCentralization: true,
                 },
             },
             physics: {
-                enabled: false,
+                enabled: true,
+                hierarchicalRepulsion: {
+                    centralGravity: 0.2,
+                    springLength: 200,
+                    springConstant: 0.02,
+                    nodeDistance: 180,
+                    damping: 0.09,
+                    avoidOverlap: 0.8,
+                },
+                stabilization: {
+                    enabled: true,
+                    iterations: 200,
+                    updateInterval: 25,
+                    fit: true,
+                },
+                solver: 'hierarchicalRepulsion',
             },
             interaction: {
                 dragNodes: true,
@@ -297,6 +422,12 @@ export default function LearningPathViewer() {
 
         networkInstance.current = new Network(networkContainer.current, data, options);
 
+        // Disable physics after stabilization so nodes stay put
+        networkInstance.current.on('stabilizationIterationsDone', () => {
+            networkInstance.current?.setOptions({ physics: { enabled: false } });
+            networkInstance.current?.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+        });
+
         networkInstance.current.on('click', (params) => {
             if (params.nodes.length > 0) {
                 const nodeId = params.nodes[0] as string;
@@ -306,14 +437,14 @@ export default function LearningPathViewer() {
                         id: concept.id,
                         label: concept.label,
                         prerequisites: concept.prerequisites,
-                        mastery: 'not_started',
+                        mastery: getMasteryLevel(concept.id),
                     });
                 }
             } else {
                 setSelectedNode(null);
             }
         });
-    }, [graphData, layoutDirection, theme.palette.text.primary, theme.palette.text.secondary]);
+    }, [graphData, layoutDirection, theme.palette.text.primary, theme.palette.text.secondary, getMasteryLevel]);
 
     useEffect(() => {
         if (graphData && networkContainer.current) {
@@ -481,9 +612,9 @@ export default function LearningPathViewer() {
             </Box>
 
             {/* Graph Container */}
-            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden', gap: 2, p: 2 }}>
+            <Box sx={{ flex: 1, overflow: 'hidden', p: 2 }}>
                 {/* Main Graph Area */}
-                <Box sx={{ flex: 1, position: 'relative', minWidth: 0 }}>
+                <Box sx={{ width: '100%', height: '100%', position: 'relative' }}>
                     {loading && (
                         <Box
                             component={motion.div}
@@ -586,131 +717,175 @@ export default function LearningPathViewer() {
                     )}
 
                     <Box ref={networkContainer} sx={{ width: '100%', height: '100%', bgcolor: 'background.paper', borderRadius: 2 }} />
-                </Box>
 
-                {/* Progress Panel */}
-                {progressData && graphData && (
-                    <Box sx={{ width: 380, flexShrink: 0, overflow: 'auto' }}>
-                        <LearningPathProgress
-                            concepts={progressData.concepts}
-                            overall_progress={progressData.overall_progress}
-                            threadId={selectedPathId}
-                            onSyncComplete={() => {
-                                // Reload progress after sync
-                                if (selectedPathId && session?.access_token) {
-                                    getPathProgress(selectedPathId, session.access_token)
-                                        .then(setProgressData)
-                                        .catch(console.error);
-                                }
+                    {/* Floating Node Detail Panel */}
+                    {selectedNode && (
+                        <Paper
+                            elevation={6}
+                            sx={{
+                                position: 'absolute',
+                                top: 16,
+                                right: 16,
+                                width: 280,
+                                maxHeight: 'calc(100% - 32px)',
+                                overflow: 'auto',
+                                borderRadius: 2,
+                                zIndex: 10,
+                            }}
+                        >
+                            <Box sx={{ p: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1.5 }}>
+                                    <Typography variant="subtitle2" fontWeight="bold" sx={{ lineHeight: 1.3 }}>
+                                        {selectedNode.label}
+                                    </Typography>
+                                    <IconButton onClick={() => setSelectedNode(null)} size="small" sx={{ ml: 1, mt: -0.5 }}>
+                                        <CloseIcon fontSize="small" />
+                                    </IconButton>
+                                </Box>
+
+                                <Box sx={{ mb: 1.5 }}>
+                                    <Chip
+                                        label={selectedNode.mastery.replace('_', ' ')}
+                                        size="small"
+                                        sx={{
+                                            bgcolor: MASTERY_COLORS[selectedNode.mastery].border,
+                                            color: '#fff',
+                                            textTransform: 'capitalize',
+                                            fontWeight: 600,
+                                            fontSize: '0.7rem',
+                                        }}
+                                    />
+                                </Box>
+
+                                {selectedNode.prerequisites.length > 0 && (
+                                    <Box sx={{ mb: 1.5 }}>
+                                        <Typography variant="caption" color="text.secondary" gutterBottom sx={{ display: 'block' }}>
+                                            Prerequisites
+                                        </Typography>
+                                        {selectedNode.prerequisites.map((prereq) => (
+                                            <Chip
+                                                key={prereq}
+                                                label={formatConceptName(prereq)}
+                                                size="small"
+                                                variant="outlined"
+                                                sx={{ mr: 0.5, mb: 0.5, fontSize: '0.7rem' }}
+                                            />
+                                        ))}
+                                    </Box>
+                                )}
+
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                                    <Button
+                                        variant="contained"
+                                        fullWidth
+                                        size="small"
+                                        onClick={() => navigate('/content-discovery', { state: { searchQuery: selectedNode.label } })}
+                                    >
+                                        Start Learning
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        fullWidth
+                                        size="small"
+                                        onClick={() => navigate('/content-discovery', { state: { searchQuery: selectedNode.label } })}
+                                    >
+                                        View Resources
+                                    </Button>
+                                    {(() => {
+                                        const unmastered = selectedNode.prerequisites.filter(
+                                            (p) => getMasteryLevel(p) !== 'mastered'
+                                        );
+                                        const prereqsMet = selectedNode.prerequisites.length === 0 || unmastered.length === 0;
+                                        return (
+                                            <Tooltip
+                                                title={
+                                                    prereqsMet
+                                                        ? ''
+                                                        : `Complete prerequisites first: ${unmastered.map(formatConceptName).join(', ')}`
+                                                }
+                                                arrow
+                                            >
+                                                <span>
+                                                    <Button
+                                                        variant="outlined"
+                                                        fullWidth
+                                                        size="small"
+                                                        disabled={!prereqsMet}
+                                                        onClick={() => setQuizDialogOpen(true)}
+                                                    >
+                                                        Take Assessment
+                                                    </Button>
+                                                </span>
+                                            </Tooltip>
+                                        );
+                                    })()}
+                                </Box>
+                            </Box>
+                        </Paper>
+                    )}
+
+                    {/* Floating Progress Badge */}
+                    {graphData && !progressData && (
+                        <Chip
+                            label="No progress yet — take a quiz to start tracking"
+                            size="small"
+                            sx={{
+                                position: 'absolute',
+                                top: 12,
+                                left: 12,
+                                zIndex: 5,
+                                bgcolor: 'background.paper',
+                                border: 1,
+                                borderColor: 'divider',
+                                fontSize: '0.75rem',
                             }}
                         />
-                    </Box>
-                )}
+                    )}
 
-                {/* Side Panel */}
-                {selectedNode && (
-                    <Drawer
-                        anchor="right"
-                        open={Boolean(selectedNode)}
-                        onClose={() => setSelectedNode(null)}
-                        PaperProps={{ sx: { width: 320 } }}
-                        variant="persistent"
-                    >
-                        <Box sx={{ p: 3 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3 }}>
-                                <Typography variant="h6" fontWeight="bold">
-                                    {selectedNode.label}
-                                </Typography>
-                                <IconButton onClick={() => setSelectedNode(null)} size="small">
-                                    <CloseIcon />
-                                </IconButton>
-                            </Box>
-
-                            <Box sx={{ mb: 3 }}>
-                                <Typography variant="subtitle2" fontWeight="semibold" gutterBottom>
-                                    Mastery Level
-                                </Typography>
-                                <Chip
-                                    label={selectedNode.mastery.replace('_', ' ')}
-                                    sx={{
-                                        bgcolor: MASTERY_COLORS[selectedNode.mastery].border,
-                                        color: '#fff',
-                                        textTransform: 'capitalize',
-                                        fontWeight: 600,
-                                    }}
-                                />
-                            </Box>
-
-                            <Box sx={{ mb: 3 }}>
-                                <Typography variant="subtitle2" fontWeight="semibold" gutterBottom>
-                                    Prerequisites
-                                </Typography>
-                                {selectedNode.prerequisites.length > 0 ? (
-                                    <List dense>
-                                        {selectedNode.prerequisites.map((prereq) => (
-                                            <ListItem
-                                                key={prereq}
-                                                sx={{
-                                                    bgcolor: 'background.default',
-                                                    borderRadius: 1,
-                                                    mb: 0.5,
-                                                    border: 1,
-                                                    borderColor: 'divider',
-                                                }}
-                                            >
-                                                <ListItemText primary={formatConceptName(prereq)} primaryTypographyProps={{ variant: 'body2' }} />
-                                            </ListItem>
-                                        ))}
-                                    </List>
-                                ) : (
-                                    <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                                        No prerequisites
-                                    </Typography>
-                                )}
-                            </Box>
-
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                <Button
-                                    variant="contained"
-                                    fullWidth
-                                    onClick={() => navigate('/content-discovery', { state: { searchQuery: selectedNode.label } })}
-                                >
-                                    Start Learning
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    onClick={() => navigate('/content-discovery', { state: { searchQuery: selectedNode.label } })}
-                                >
-                                    View Resources
-                                </Button>
-                                <Button
-                                    variant="outlined"
-                                    fullWidth
-                                    onClick={() => setQuizDialogOpen(true)}
-                                >
-                                    Take Assessment
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Drawer>
-                )}
+                    {/* Floating Progress Summary */}
+                    {progressData && graphData && progressData.overall_progress > 0 && (
+                        <Chip
+                            label={`Progress: ${Math.round(progressData.overall_progress)}%`}
+                            size="small"
+                            color="primary"
+                            sx={{
+                                position: 'absolute',
+                                top: 12,
+                                left: 12,
+                                zIndex: 5,
+                                fontWeight: 600,
+                            }}
+                        />
+                    )}
+                </Box>
             </Box>
 
-            {/* Footer - Mastery Legend */}
+            {/* Footer - Legend */}
             <Box sx={{ bgcolor: 'background.paper', borderTop: 1, borderColor: 'divider', px: 3, py: 1.5 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flexWrap: 'wrap' }}>
                     <Typography variant="body2" fontWeight="semibold">
-                        Mastery Levels:
+                        Legend:
                     </Typography>
-                    {Object.entries(MASTERY_COLORS).map(([level, colors]) => (
-                        <Box key={level} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: colors.border, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                            <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
-                                {level.replace('_', ' ')}
-                            </Typography>
-                        </Box>
-                    ))}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: '#0d9488', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                        <Typography variant="caption" color="text.secondary">Start</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: '#8b5cf6', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                        <Typography variant="caption" color="text.secondary">Final</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: '#d97706', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                        <Typography variant="caption" color="text.secondary">Goal</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: '#f59e0b', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                        <Typography variant="caption" color="text.secondary">In Progress</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: '#10b981', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                        <Typography variant="caption" color="text.secondary">Mastered</Typography>
+                    </Box>
                 </Box>
             </Box>
 
@@ -731,6 +906,11 @@ export default function LearningPathViewer() {
                     conceptName={selectedNode.label}
                     conceptId={selectedNode.id}
                     learningPathThreadId={selectedPathId}
+                    onQuizComplete={() => {
+                        if (selectedPathId) {
+                            loadGraphData(selectedPathId);
+                        }
+                    }}
                 />
             )}
         </Box>

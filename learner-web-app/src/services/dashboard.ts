@@ -1,9 +1,7 @@
 /**
  * Dashboard API service
  */
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const API_V1_PREFIX = '/api/v1';
+import { fetchAPI, API_V1_PREFIX } from './apiClient';
 
 export interface RecentActivity {
     type: string;
@@ -36,21 +34,7 @@ export interface DashboardStats {
  * Get dashboard statistics
  */
 export async function getDashboardStats(token: string): Promise<DashboardStats> {
-    const response = await fetch(
-        `${API_BASE_URL}${API_V1_PREFIX}/dashboard/stats`,
-        {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-        }
-    );
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Failed to fetch dashboard stats' }));
-        throw new Error(error.detail || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+    return fetchAPI<DashboardStats>(`${API_V1_PREFIX}/dashboard/stats`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
 }

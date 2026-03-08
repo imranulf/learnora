@@ -124,6 +124,7 @@ Thumbs.db
 # Claude Code
 CLAUDE.md
 .claude/
+COMPARISON_NOTES.md
 
 # OpenAPI temp exports
 openapi*.json

@@ -779,7 +779,7 @@ export default function LearningPathViewer() {
                                         variant="contained"
                                         fullWidth
                                         size="small"
-                                        onClick={() => navigate('/content-discovery', { state: { searchQuery: selectedNode.label } })}
+                                        onClick={() => navigate('/discover', { state: { searchQuery: selectedNode.label } })}
                                     >
                                         Start Learning
                                     </Button>
@@ -787,7 +787,7 @@ export default function LearningPathViewer() {
                                         variant="outlined"
                                         fullWidth
                                         size="small"
-                                        onClick={() => navigate('/content-discovery', { state: { searchQuery: selectedNode.label } })}
+                                        onClick={() => navigate('/discover', { state: { searchQuery: selectedNode.label } })}
                                     >
                                         View Resources
                                     </Button>

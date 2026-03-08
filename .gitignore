@@ -98,22 +98,24 @@ logs/
 secrets/
 credentials/
 
-# Unnecessary/Temporary Markdown Documentation
+# Temporary/generated files
 *_FIXES_REPORT.md
 *_FIX_*.md
-MARKDOWN_*.md
 *_RECHECK_*.md
 *_AUDIT_*.md
 CLEANUP_*.md
+MARKDOWN_*.md
 verify_*.py
 fix_*.py
 test_*.py
+simple_test.py
 cleanup_*.ps1
 run_cleanup.ps1
 final_cleanup.ps1
-
-# Archive directory (optional - uncomment if you don't want to track archived docs)
-# docs/archive/
+fix_mcp*.ps1
+cleanup_input.txt
+example_*.py
+add_python*.ps1
 
 # OS
 Thumbs.db

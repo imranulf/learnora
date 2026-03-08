@@ -119,6 +119,13 @@ final_cleanup.ps1
 Thumbs.db
 .DS_Store
 
+# Claude Code
+CLAUDE.md
+.claude/
+
+# OpenAPI temp exports
+openapi*.json
+
 # Misc
 .pytest_cache/
 .mypy_cache/

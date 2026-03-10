@@ -76,28 +76,30 @@ class AgentService:
             # Invoke graph based on stage
             if stage == GraphStage.RESUME_CONVERSATION:
                 if graph_state.next:
-                    logger.info(f"Resuming from interrupt for thread {resolved_thread_id}")
-                    graph.update_state(config, state)
+                    # Resume from interrupt: as_node must be the interrupted node
+                    # so invoke(None) continues to the NEXT node, not re-runs the interrupt
+                    interrupted_node = graph_state.next[0]
+                    logger.info(f"Resuming from interrupt at '{interrupted_node}' for thread {resolved_thread_id}")
+                    graph.update_state(config, state, as_node=interrupted_node)
                     result = await asyncio.to_thread(graph.invoke, None, config)
                 else:
                     result = await asyncio.to_thread(graph.invoke, state, config)
             else:
                 result = await asyncio.to_thread(graph.invoke, state, config)
 
-            # Get the final state
+            # Get the final state from both invoke result and checkpointer
             state = graph.get_state(config)
 
             # Format messages
             formatted_messages = self._format_messages(result.get("messages", []))
 
             # Parse and save learning path if concept graph was generated
-            concept_graph = state.values.get('concept_graph')
+            # Use result (direct invoke output) as primary source, fall back to checkpointer state
+            concept_graph = result.get('concept_graph') or state.values.get('concept_graph')
             if concept_graph:
                 try:
-                    logger.info(f"Concept graph generated for thread {resolved_thread_id}, saving learning path...")
-
-                    # Create learning path in DB
-                    topic = state.values.get('topic') or 'Untitled'
+                    topic = result.get('topic') or state.values.get('topic') or 'Untitled'
+                    logger.info(f"Concept graph generated for thread {resolved_thread_id}, topic='{topic}', saving learning path...")
                     learning_path_create = LearningPathCreate(
                         conversation_thread_id=resolved_thread_id,
                         topic=topic,
@@ -137,7 +139,7 @@ class AgentService:
             return ChatResponse(
                 thread_id=resolved_thread_id,
                 messages=formatted_messages,
-                topic=state.values.get('topic'),
+                topic=result.get('topic') or state.values.get('topic'),
                 learning_path_json=concept_graph,
             )
 

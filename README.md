@@ -10,7 +10,7 @@ An AI-powered casual learning platform that creates personalized learning paths 
 - **Content Discovery** — Search and crawl external learning resources (YouTube, web, Medium) with hybrid search (BM25 + Dense)
 - **Personalized Content** — AI-powered difficulty adaptation, summaries, key takeaways, and time estimates
 - **Progress Tracking** — Dashboard with analytics, completion metrics, and per-concept mastery levels
-- **Dark Mode** — Full dark/light theme support across the application
+- **Dark Mode** — Full dark/light theme support via MUI CSS variables (no runtime mode checks)
 
 ## Tech Stack
 
@@ -29,7 +29,7 @@ An AI-powered casual learning platform that creates personalized learning paths 
 |---|---|
 | **React 19** + **TypeScript** | UI framework |
 | **Vite** | Build tool |
-| **Material UI (MUI)** | Component library |
+| **Material UI (MUI) v7** | Component library (CSS variables theming) |
 | **React Query** | Server state management with caching |
 | **React Router 7** | Client-side routing |
 | **vis-network** | Knowledge graph visualization |
@@ -220,10 +220,13 @@ The app spreads requests across 5 Gemini models to maximize the free-tier quota 
 
 All models use a single `GOOGLE_API_KEY`. Rate limit errors (429) are caught and surfaced to the user with clear messages.
 
-## Notes
+## Key Design Decisions
 
-- Knowledge graph data is stored as `.ttl` (Turtle) files — no external graph database required.
-- Content discovery uses an in-memory vector store; indexed content is lost on server restart.
+- **MUI v7 CSS variables**: Dark mode is handled entirely via CSS variables — `theme.palette.mode` always returns `'light'` in sx callbacks, so all styling uses semantic tokens (`'background.paper'`, `'action.hover'`) and `variant="outlined"` instead of runtime mode checks.
+- **LangGraph interrupt pattern**: Graph resume uses `update_state(config, state, as_node=graph_state.next[0])` to correctly advance past wait nodes. Without `as_node`, the graph re-enters the interrupt node in an infinite loop.
+- **State after resume**: The `invoke()` return value is used as the primary source for topic and concept graph data, since `graph.get_state().values` may not reflect all intermediate node outputs after a resume.
+- **Knowledge graph storage**: `.ttl` (Turtle) files — no external graph database required.
+- **Content discovery**: In-memory vector store; indexed content is lost on server restart.
 
 ## License
 
